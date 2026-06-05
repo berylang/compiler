@@ -46,6 +46,6 @@ CodeGen codegen(ast.get());
 codegen.generate(irFile);
 
 
-std::cout << "bery: IR written to " << irFile << "\n";
+std::cout << "Bery: Success !!\n";
 return 0;
 }

@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/bery.dir/link.d CMakeFiles/bery.dir/src/main.cpp.o CMakeFiles/bery.dir/src/lexer/lexer.cpp.o CMakeFiles/bery.dir/src/parser/parser.cpp.o CMakeFiles/bery.dir/src/sema/sema.cpp.o CMakeFiles/bery.dir/src/sema/symboltable.cpp.o CMakeFiles/bery.dir/src/codegen/codegen.cpp.o -o bery
