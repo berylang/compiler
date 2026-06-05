@@ -46,6 +46,7 @@ void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
 }
 bool SemanticAnalyzer::typeMatchesLiteral(const std::string& type, NodeType litType) {
    if (type == "int"    && litType == NodeType::INT_LIT)     return true;
+   if (type == "bool" && litType == NodeType::BOOL_LIT) return true;
    return false;
 }
 bool SemanticAnalyzer::hasErrors() { return errors; }

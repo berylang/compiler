@@ -1,3 +1,0 @@
-/mnt/Projects/m34/m3407/build/CMakeFiles/bery.dir
-/mnt/Projects/m34/m3407/build/CMakeFiles/edit_cache.dir
-/mnt/Projects/m34/m3407/build/CMakeFiles/rebuild_cache.dir

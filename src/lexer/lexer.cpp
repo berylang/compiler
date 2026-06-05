@@ -5,7 +5,10 @@
 
 static std::unordered_map<std::string, TokenType> keywords = {
     {"int", TokenType::TOKEN_INT},
-    {"run", TokenType::TOKEN_RUN}
+    {"run", TokenType::TOKEN_RUN},
+    {"bool", TokenType::TOKEN_BOOL},
+    {"true", TokenType::TOKEN_TRUE},
+    {"false", TokenType::TOKEN_FALSE}
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}

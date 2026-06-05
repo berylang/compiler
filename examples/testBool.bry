@@ -1,0 +1,8 @@
+run {
+    bool a = true;
+    bool isFlag = false;
+    bool x;
+    bool p, q, r = true;
+
+    bool l, m = false, n;
+}
