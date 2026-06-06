@@ -11,6 +11,12 @@ struct IntLitNode : public ASTNode {
     }
 };
 
+struct DoubleLitNode: public ASTNode{
+     double value;
+     DoubleLitNode(double v):value(v){
+        type=NodeType::DOUBLE_LIT;
+     }
+};
 
 struct BoolLitNode: public ASTNode {
     bool value;
