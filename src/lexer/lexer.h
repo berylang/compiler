@@ -23,6 +23,7 @@ class Lexer {
     char peekNext();
     bool isAtEnd();
     void skipWhitespaces();
+    void skipComments(bool isMLC);
     void scanToken();
     void scanIdentifierOrKeyword();
     void scanNumber(); // eitehr flaot or int
