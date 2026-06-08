@@ -92,6 +92,9 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
         case TokenType::TOKEN_FALSE:
             advance();
             return std::make_unique<BoolLitNode>(false);
+        case TokenType::TOKEN_CHAR_LIT:
+            advance();
+            return std::make_unique<CharLitNode>(t.lexeme[0]);
         default:
             errors = true;
             throw std::runtime_error("Expected literal at line " + std::to_string(t.line));
@@ -118,7 +121,8 @@ bool Parser::isTypeToken(TokenType t) {
             t == TokenType::TOKEN_BIGINT ||
            t == TokenType::TOKEN_BOOL ||
            t == TokenType::TOKEN_FLOAT ||
-           t == TokenType::TOKEN_DOUBLE;
+           t == TokenType::TOKEN_DOUBLE ||
+           t == TokenType::TOKEN_CHAR;
 }
 
 bool Parser::hasErrors() {return errors;}

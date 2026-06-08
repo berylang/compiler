@@ -12,7 +12,9 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"run", TokenType::TOKEN_RUN},
     {"bool", TokenType::TOKEN_BOOL},
     {"true", TokenType::TOKEN_TRUE},
-    {"false", TokenType::TOKEN_FALSE}
+    {"false", TokenType::TOKEN_FALSE},
+    {"char", TokenType::TOKEN_CHAR}
+
     
 };
 
@@ -55,6 +57,9 @@ void Lexer::scanToken() {
         case ',':
             tokens.push_back({TokenType::TOKEN_COMMA, ",", line});
             break;
+        case '\'':
+            scanCharLit();
+            break;
         case '-':
             if(peek()=='-'){
                 if(peekNext()=='-'){ 
@@ -88,6 +93,81 @@ void Lexer::scanNumber() {
         tokens.push_back({TokenType::TOKEN_INT_LIT, source.substr(start, current - start), line});
     }
 }
+
+void Lexer::scanCharLit() {
+    if (errors) return; //avoids duplicate error statements
+
+    // to handle empty character literal: ''
+    if (peek() == '\'') { 
+        errors = true;
+        std::cerr << "Bery:Error:Empty Char Literal\n";
+        advance(); 
+        return;
+    }
+
+    char value = 0;
+
+    // to handle escape sequences
+    if (peek() == '\\') { 
+        advance(); 
+
+        if (isAtEnd() || peek() == '\'') { // check for '\'
+            errors = true;
+            std::cerr << "Bery:Error:Incomplete Escape Sequence\n";
+            return;
+        }
+
+        char es = advance();
+        switch (es) {
+            case 'n':  value = '\n'; break;
+            case 't':  value = '\t'; break;
+            case 'r':  value = '\r'; break;
+            case '\\': value = '\\'; break;
+            case '0':  value = '\0'; break;
+            case '\'': value = '\''; break;
+            default:
+                errors = true;
+                std::cerr << "Bery:Error:Invalid Escape Sequence\n";
+                return;
+        }
+    } 
+    // to handle regular(letter,digit,syambol,space) characters
+    else {
+        if (peek() == '\n' || peek() == '\r') {
+            errors = true;
+            std::cerr << "Bery:Error:Newline in char literal\n";
+            return;
+        }
+        value = advance();
+    }
+
+    // single char followed immediately by a closing '
+    if (!isAtEnd() && peek() == '\'') {
+        advance(); 
+        tokens.push_back({TokenType::TOKEN_CHAR_LIT, std::string(1, value), line});
+        return;
+    }
+
+    // to correctly differentiate multi-character error and unclosed char error
+    bool foundClosingQuote = false;
+    while (!isAtEnd() && peek() != '\'' && peek() != '\n' && peek() != '\r') {
+        advance();
+    }
+
+    //reached end and a closing ' present - more than one char present
+    if (!isAtEnd() && peek() == '\'') {
+        advance(); 
+        foundClosingQuote = true;
+    }
+
+    errors = true;
+    if (foundClosingQuote) {
+        std::cerr << "Bery:Error:Multi-character Char Literal\n";
+    } else {
+        std::cerr << "Bery:Error:Unclosed Char Literal\n"; //multi char and no closing ' , considers space also as char
+    }
+}
+
 void Lexer::scanIdentifierOrKeyword() {
     int start = current - 1;
     while (!isAtEnd() && isAlphaNumeric(peek())) advance();
