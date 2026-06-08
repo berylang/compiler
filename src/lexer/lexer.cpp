@@ -122,7 +122,7 @@ void Lexer::scanToken() {
                 return;
             }
             else{
-                //@todo: Add TOKEN_PLUS
+                tokens.push_back({TokenType::TOKEN_PLUS, "+", line});
                 return;
             }
             break;
