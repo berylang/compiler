@@ -8,6 +8,8 @@ enum class TokenType {
     TOKEN_FLOAT, TOKEN_DECIMAL_LIT,
     TOKEN_BIGINT,
     TOKEN_DOUBLE,
+    TOKEN_LBRACKET,
+    TOKEN_RBRACKET,
     TOKEN_CHAR, TOKEN_CHAR_LIT,
 
     //@optrs

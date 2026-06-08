@@ -3,6 +3,7 @@
 #include "ast/programnode.h"
 #include "ast/literals.h"
 #include "ast/vardecl.h"
+#include "ast/arraydeclare.h"
 #include <stdexcept>
 #include <iostream>
 #include "ast/expressions.h"
@@ -15,11 +16,16 @@ std::unique_ptr<ASTNode> Parser::parse() {
    while (!isAtEnd() && !check(TokenType::TOKEN_RUN)) {
        bool isConst = false;
        if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
-       if (isTypeToken(peek().type)) {
-           auto decls = parseVarDecl(isConst);
-           for (auto& d : decls)
-               program->globals.push_back(std::move(d));
-       } else {
+        if (isTypeToken(peek().type)) {
+           if (!isConst && isArrayDecl()) {
+               auto decl = parseArrayDecl();
+               program->globals.push_back(std::move(decl));
+           } else {
+               auto decls = parseVarDecl(isConst);
+               for (auto& d : decls)
+                   program->globals.push_back(std::move(d));
+           }
+       }else {
            std::cerr << "bery: unexpected token '" << peek().lexeme << "' at line " << peek().line << "\n";
            errors = true;
            advance();
@@ -33,11 +39,16 @@ std::unique_ptr<ASTNode> Parser::parse() {
        while (!isAtEnd() && !check(TokenType::TOKEN_RBRACE)) {
            bool isConst = false;
            if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
-           if (isTypeToken(peek().type)) {
-               auto decls = parseVarDecl(isConst);
-               for (auto& d : decls)
-                   runBlock->statements.push_back(std::move(d));
-           } else {
+                       if (isTypeToken(peek().type)) {
+                if (!isConst && isArrayDecl()) {
+                    auto decl = parseArrayDecl();
+                    runBlock->statements.push_back(std::move(decl));
+                } else {
+                    auto decls = parseVarDecl(isConst);
+                    for (auto& d : decls)
+                        runBlock->statements.push_back(std::move(d));
+                }
+            } else {
                while (!isAtEnd() && !check(TokenType::TOKEN_SEMICOLON)
                                  && !check(TokenType::TOKEN_RBRACE))
                    advance();
@@ -216,6 +227,53 @@ bool Parser::isTypeToken(TokenType t) {
            t == TokenType::TOKEN_FLOAT ||
            t == TokenType::TOKEN_DOUBLE ||
            t == TokenType::TOKEN_CHAR;
+}
+
+bool Parser::isArrayDecl() {
+    if (isTypeToken(peek().type)) {
+        if (current + 2 < tokens.size() &&
+            tokens[current + 1].type == TokenType::TOKEN_IDENT &&
+            tokens[current + 2].type == TokenType::TOKEN_LBRACKET) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::unique_ptr<ASTNode> Parser::parseArrayDecl() {
+    Token typeToken = consume(peek().type, "Expected type");
+    std::string elementType = typeToken.lexeme;
+
+    Token nameToken = consume(TokenType::TOKEN_IDENT, "Expected identifier");
+    std::string name = nameToken.lexeme;
+
+    consume(TokenType::TOKEN_LBRACKET, "Expected '['");
+
+    int size = -1;
+    if (check(TokenType::TOKEN_INT_LIT)) {
+        Token sizeToken = advance();
+        size = std::stoi(sizeToken.lexeme);
+    }
+
+    consume(TokenType::TOKEN_RBRACKET, "Expected ']'");
+
+    std::vector<std::unique_ptr<ASTNode>> initializers;
+    if (check(TokenType::TOKEN_EQUAL)) {
+        advance(); 
+        consume(TokenType::TOKEN_LBRACE, "Expected '{'");
+        
+        if (!check(TokenType::TOKEN_RBRACE)) {
+            do {
+                initializers.push_back(parseExpression());
+            } while (!isAtEnd() && check(TokenType::TOKEN_COMMA) && (advance(), true));
+        }
+        
+        consume(TokenType::TOKEN_RBRACE, "Expected '}'");
+    }
+
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';'");
+
+    return std::make_unique<ArrayDeclNode>(elementType, name, size, std::move(initializers));
 }
 
 bool Parser::hasErrors() {return errors;}

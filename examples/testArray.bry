@@ -1,0 +1,5 @@
+run {
+    int arr1[5];
+    float arr2[3] = {1.0, 2.0, 3.0};
+    double arr3[] = {1.5, 2.5};
+}
