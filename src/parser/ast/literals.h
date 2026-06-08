@@ -33,3 +33,10 @@ struct IdentNode : public ASTNode {
         }
 };
 
+struct CharLitNode : public ASTNode {
+    char value;
+    CharLitNode(char v) : value(v) {
+        type = NodeType::CHAR_LIT;
+    }
+};
+
