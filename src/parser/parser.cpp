@@ -5,6 +5,7 @@
 #include "ast/vardecl.h"
 #include <stdexcept>
 #include <iostream>
+#include "ast/expressions.h"
 
 Parser::Parser(const std::vector<Token>& tokens)
     : tokens(tokens), current(0), errors(false) {}
@@ -63,7 +64,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parseVarDecl(bool isConst) {
 
         if (check(TokenType::TOKEN_EQUAL)) {
             advance();
-            value = parseLiteral();
+            value = parseExpression();
         }
 
         decls.push_back(std::make_unique<VarDeclNode>(varType, name.lexeme, std::move(value), isConst));
@@ -100,6 +101,74 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
             throw std::runtime_error("Expected literal at line " + std::to_string(t.line));
     }
 }
+
+std::unique_ptr<ASTNode> Parser::parseExpression(){
+    //@change: When you implement top level expression change the call here
+    return parseUnary();
+}
+
+std::unique_ptr<ASTNode> Parser::parsePrimary(){
+    Token t = peek();
+    switch(t.type) {
+        case TokenType::TOKEN_INT_LIT: 
+            advance();
+            return std::make_unique<IntLitNode>(std::stoll(t.lexeme));
+        
+        case TokenType::TOKEN_DECIMAL_LIT: 
+            advance();
+            return std::make_unique<DecimalLitNode>(std::stod(t.lexeme));
+        
+        case TokenType::TOKEN_TRUE:
+            advance();
+            return std::make_unique<BoolLitNode>(true);
+        case TokenType::TOKEN_FALSE:
+            advance();
+            return std::make_unique<BoolLitNode>(false);
+        case TokenType::TOKEN_CHAR_LIT:
+            advance();
+            return std::make_unique<CharLitNode>(t.lexeme[0]);
+        case TokenType::TOKEN_IDENT:{
+            advance();
+            return std::make_unique<IdentNode>(t.lexeme,"");
+        }
+        case TokenType::TOKEN_LPARAN:{
+            advance();
+            auto expression = parseExpression();
+            consume(TokenType::TOKEN_RPARAN, "Expected ')' after expression");
+            return std::make_unique<GroupedExprNode>(std::move(expression));
+        }
+        default:
+            errors = true;
+            throw std::runtime_error("Expected valid expression at line " + std::to_string(t.line));
+    }
+
+}
+
+std::unique_ptr<ASTNode> Parser::parsePostfix(){
+    auto expr = parsePrimary();
+    if(check(TokenType::TOKEN_INC) || check(TokenType::TOKEN_DEC)){
+        advance();
+        std::string optr = "post"+previous().lexeme;
+
+        return std::make_unique<UnaryExprNode>(optr, std::move(expr));
+    }
+    return expr;
+}
+
+std::unique_ptr<ASTNode> Parser::parseUnary(){
+    if(check(TokenType::TOKEN_BANG) ||
+        check(TokenType::TOKEN_TILDE)||
+        check(TokenType::TOKEN_INC)||
+        check(TokenType::TOKEN_DEC)||
+        check(TokenType::TOKEN_MINUS)){
+            advance();
+            std::string optr = previous().lexeme;
+            auto operand = parsePostfix();
+            return std::make_unique<UnaryExprNode>(optr, std::move(operand));
+        }
+    return parsePostfix();
+}
+
 Token Parser::advance() {return tokens[current++];}
 
 Token Parser::peek() {return tokens[current];}

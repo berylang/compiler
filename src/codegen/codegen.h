@@ -18,5 +18,5 @@ private:
    std::string llvmType(const std::string& berryType);
    void genVarDecl(ASTNode* node, std::ostream& out);
    
-   std::string genLiteral(ASTNode* node, const std::string& varType, std::ostream& out);
+   std::string genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out);
 };

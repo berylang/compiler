@@ -7,6 +7,7 @@
 #include <sstream>
 #include <cstdint>
 #include <iomanip>
+#include "../parser/ast/expressions.h"
 
 CodeGen::CodeGen(ASTNode* root)
    : root(root), regCounter(0) {}
@@ -60,37 +61,94 @@ void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
    std::string lt = llvmType(decl->varType);
    out << "    %" << decl->name << " = alloca " << lt << "\n";
    if (!decl->value) return;
-   std::string valReg = genLiteral(decl->value.get(), decl->varType, out);
+   std::string valReg = genExpression(decl->value.get(), decl->varType, out);
    out << "    store " << lt << " " << valReg << ", " << lt << "* %" << decl->name << "\n";
 }
 
-std::string CodeGen::genLiteral(ASTNode* node, const std::string& varType, std::ostream& out) {
-   std::string reg = newReg();
+std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out) {
+   if(!node){return "0";}
+   std::string lt = llvmType(expectedType);
+   bool isFloat = (expectedType=="float" || expectedType=="double");
    if (node->type == NodeType::INT_LIT) {
+        std::string reg = newReg();
        auto* lit = static_cast<IntLitNode*>(node);
-       out << "    " << reg << " = add " << llvmType(varType) << " 0, " << lit->value << "\n";
+       out << "    " << reg << " = add " << lt << " 0, " << lit->value << "\n";
        return reg;
    }
 
    if (node->type == NodeType::DECIMAL_LIT) {
+        std::string reg = newReg();
        auto* lit = static_cast<DecimalLitNode*>(node);
        std::ostringstream ss;
        ss << std::showpoint << lit->value;
-       out << "    " << reg << " = fadd " << llvmType(varType) << " 0.0, " << ss.str() << "\n";
+       out << "    " << reg << " = fadd " << lt << " 0.0, " << ss.str() << "\n";
        return reg;
    }
 
    if (node->type == NodeType::BOOL_LIT) {
+        std::string reg = newReg();
       auto* lit = static_cast<BoolLitNode*>(node);
       out << "    " << reg << " = add i1 0, " << (lit->value? 1:0) << "\n";
       return reg;
    }
 
    if (node->type == NodeType::CHAR_LIT) {
+        std::string reg = newReg();
        auto* lit = static_cast<CharLitNode*>(node);
-       out << "    " << reg << " = add " << llvmType(varType) << " 0, " << (int)lit->value << "\n"; //for ascii
+       out << "    " << reg << " = add " << lt << " 0, " << (int)lit->value << "\n"; //for ascii
        return reg;
    }
+   if(node->type == NodeType::IDENT){
+    std::string reg = newReg();
+    auto* ident = static_cast<IdentNode*>(node);
+    out << "    " << reg << " = load " << lt << ", " << lt << "* %"<< ident->name << "\n";
+    return reg;
+   }
+   if(node->type == NodeType::GROUPED_EXPR){
+    auto* group = static_cast<GroupedExprNode*>(node);
+    return genExpression(group->expression.get(), expectedType, out);
+   }
+   if(node->type== NodeType::UNARY_EXPR){
+    auto* unary = static_cast<UnaryExprNode*>(node);
+    if(unary->optr == "-" || unary->optr == "!" || unary->optr == "~"){
+        std::string reg = newReg();
+        std::string opreg = genExpression(unary->operand.get(), expectedType, out);
+        if(unary->optr == "-"){
+            out << "    " << reg << " = " << (isFloat?"fsub ":"sub ") << lt << " " << (isFloat?"0.0":"0") << ", " << opreg << "\n";
+        }
+        else if(unary->optr == "!"){
+            out << "    " << reg << " = xor i1 " << opreg << ", 1\n";
+
+        }
+        else if(unary->optr == "~"){
+            out << "    " << reg << " = xor " << lt << " " << opreg << ", -1\n";
+        }
+        return reg;
+
+    }
+    if(unary->optr == "--" || unary->optr == "++" || unary->optr == "post++" || unary->optr == "post--"){
+        auto* ident = static_cast<IdentNode*>(unary->operand.get());
+        std::string oldvalreg = genExpression(unary->operand.get(), expectedType, out);
+        std::string newvalreg = newReg();
+        std::string one = isFloat?"1.0":"1";
+        std::string opins;
+        if(unary->optr == "++" || unary->optr == "post++"){
+            opins = isFloat?"fadd ":"add ";
+        }
+        else if(unary->optr == "--" || unary->optr == "post--"){
+            opins = isFloat?"fsub ":"sub ";
+        }
+        out << "    " << newvalreg << " = " << opins << lt << " " << oldvalreg << ", " << one << "\n";
+        out << "    store " << lt << " " << newvalreg << ", " << lt << "* %" << ident->name << "\n";
+        if(unary->optr == "post++" || unary->optr == "post--"){
+            return oldvalreg;
+        }
+        else{
+            return newvalreg;
+        }
+    }
+   }
+   
    return "0";
 }
 

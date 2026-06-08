@@ -74,7 +74,58 @@ void Lexer::scanToken() {
                     skipComments(true);
                     return;
                 }
+                else{
+                    advance();
+                    tokens.push_back({TokenType::TOKEN_DEC, "--", line});
+                    return;
+                }
             }
+            else if(peek()=='='){
+                //@todo: Add TOKEN_MINUSEQ 
+                return;
+            }
+            else{
+                tokens.push_back({TokenType::TOKEN_MINUS, "-", line});
+                return;
+            }
+            break;
+        case '+':
+            if(peek()=='+'){
+                tokens.push_back({TokenType::TOKEN_INC, "++", line});
+                return;
+            }
+            else if(peek()=='='){
+                //@todo: Add TOKEN_PLUSEQ
+                return;
+            }
+            else{
+                //@todo: Add TOKEN_PLUS
+                return;
+            }
+            break;
+        case '~':
+            tokens.push_back({TokenType::TOKEN_TILDE, "~", line});
+            return;
+        case '!':
+            if(peek()=='='){
+                //@todo: Add TOKEN_NOTEQ
+                return;
+            }
+            else if(peek()=='>' && peekNext()=='<'){
+                //@todo: Add TOKEN_NOTBET
+                return;
+            }
+            else{
+                tokens.push_back({TokenType::TOKEN_BANG, "!", line});
+                return;
+            }
+            break;
+        case '(':
+            tokens.push_back({TokenType::TOKEN_LPARAN, "(", line});
+            return;
+        case ')':
+            tokens.push_back({TokenType::TOKEN_RPARAN, ")", line});
+            return;
     }
 }
 //@todo - add TOKEN_DECIMAL_LIT;

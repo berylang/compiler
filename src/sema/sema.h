@@ -20,5 +20,6 @@ private:
    void analyzeNode(ASTNode* node);
    void analyzeVarDecl(ASTNode* node);
    bool typeMatchesLiteral(const std::string& type, NodeType litType);
+   std::string analyzeExpression(ASTNode* node);
 };
 

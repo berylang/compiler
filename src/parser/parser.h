@@ -25,5 +25,11 @@ class Parser {
     
     std::vector<std::unique_ptr<ASTNode>> parseVarDecl(bool isConst);
     std::unique_ptr<ASTNode> parseLiteral();
+    
+    //Expressions
+    std::unique_ptr<ASTNode> parseExpression();
+    std::unique_ptr<ASTNode> parsePrimary();
+    std::unique_ptr<ASTNode> parsePostfix();
+    std::unique_ptr<ASTNode> parseUnary();
 };
 
