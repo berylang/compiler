@@ -62,6 +62,7 @@ void Lexer::scanToken() {
             break;
         case ']':
             tokens.push_back({TokenType::TOKEN_RBRACKET, "]", line});
+            break;
         case '\'':
             scanCharLit();
             break;

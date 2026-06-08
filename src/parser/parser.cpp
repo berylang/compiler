@@ -252,8 +252,4 @@ std::unique_ptr<ASTNode> Parser::parseArrayDecl() {
     return std::make_unique<ArrayDeclNode>(elementType, name, size, std::move(initializers));
 }
 
-std::unique_ptr<ASTNode> Parser::parseExpression() {
-    return parseLiteral();
-}
-
 bool Parser::hasErrors() {return errors;}
