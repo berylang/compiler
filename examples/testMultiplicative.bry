@@ -1,0 +1,6 @@
+run {
+    int mul = 2 * 2;
+    int div = 10 / 2;
+    int mod = 10 % 2;
+    int pov = 2 ** 3;
+}

@@ -100,6 +100,19 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             return optype;
 
         }
+        case NodeType::BINARY_EXPR:{
+            auto* binary = static_cast<BinaryExprNode*>(node);
+
+            std::string lType = analyzeExpression(binary->left.get());
+            std::string rType = analyzeExpression(binary->right.get());
+
+            if(lType != rType){
+                std::cerr<<"Bery:Error: Type mismatch in binary expression\n";
+                errors=true;
+                return "unknown";
+            }
+            return lType;
+        }
         default:
             std::cerr<<"Bery:Error: Unknown expression \n";
             errors = true;

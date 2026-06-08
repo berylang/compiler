@@ -60,6 +60,23 @@ void Lexer::scanToken() {
         case '\'':
             scanCharLit();
             break;
+        case '*':
+            if(peek() == '*'){
+                advance();
+                tokens.push_back({TokenType::TOKEN_POWER, "*", line});
+                return;
+            }
+            else{
+                tokens.push_back({TokenType::TOKEN_STAR, "*", line});
+            }
+            break;
+        case '/':
+            tokens.push_back({TokenType::TOKEN_FSLASH, "*", line});
+            break;
+        case '%':
+            tokens.push_back({TokenType::TOKEN_PERCENT, "*", line});
+            break;
+        
         case '-':
             if(peek()=='-'){
                 if(peekNext()=='-'){ 

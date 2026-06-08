@@ -104,7 +104,7 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
 
 std::unique_ptr<ASTNode> Parser::parseExpression(){
     //@change: When you implement top level expression change the call here
-    return parseUnary();
+    return parseMultiplicative();
 }
 
 std::unique_ptr<ASTNode> Parser::parsePrimary(){
@@ -168,6 +168,30 @@ std::unique_ptr<ASTNode> Parser::parseUnary(){
         }
     return parsePostfix();
 }
+
+std::unique_ptr<ASTNode> Parser::parseMultiplicative(){
+
+    auto left = parseUnary();
+    
+    while(check(TokenType::TOKEN_STAR) ||
+        check(TokenType::TOKEN_FSLASH)||
+        check(TokenType::TOKEN_PERCENT)||
+        check(TokenType::TOKEN_POWER)){
+            
+        std::string optr = peek().lexeme;
+        advance();
+
+        auto right = parseUnary();
+
+        left = std::make_unique<BinaryExprNode>(
+            optr,
+            std::move(left),
+            std::move(right)
+        );
+    }
+    return left;
+}
+
 
 Token Parser::advance() {return tokens[current++];}
 

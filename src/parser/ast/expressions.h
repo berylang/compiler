@@ -24,3 +24,18 @@ struct GroupedExprNode : public ASTNode{
             type = NodeType::GROUPED_EXPR;
         }
 };
+
+struct BinaryExprNode : public ASTNode{
+    std::string optr;
+    std::unique_ptr<ASTNode> left;
+    std::unique_ptr<ASTNode> right;
+
+    BinaryExprNode(std::string& opr, std::unique_ptr<ASTNode> l,std::unique_ptr<ASTNode> r):
+        optr(opr),
+        left(std::move(l)),
+        right(std::move(r))
+        {
+            type = NodeType::BINARY_EXPR;
+        }
+
+};
