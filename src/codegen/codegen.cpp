@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <cstdint>
+#include <iomanip>
 
 CodeGen::CodeGen(ASTNode* root)
    : root(root), regCounter(0) {}
@@ -36,7 +37,10 @@ void CodeGen::generate(const std::string& outputPath) {
             initVal = std::to_string(static_cast<IntLitNode*>(decl->value.get())->value);
            } 
            else if (decl->value->type == NodeType::DECIMAL_LIT ){
-               initVal = std::to_string(static_cast<DecimalLitNode*>(decl->value.get())->value);
+            double val = static_cast<DecimalLitNode*>(decl->value.get())->value;
+            std::ostringstream ss;
+            ss << std::showpoint << val;   
+            initVal = ss.str();
            }
            else if (decl->value->type == NodeType::BOOL_LIT) {
             initVal = static_cast<BoolLitNode*>(decl->value.get())->value? "1" :"0";
@@ -70,7 +74,9 @@ std::string CodeGen::genLiteral(ASTNode* node, const std::string& varType, std::
 
    if (node->type == NodeType::DECIMAL_LIT) {
        auto* lit = static_cast<DecimalLitNode*>(node);
-       out << "    " << reg << " = fadd " << llvmType(varType) << " 0.0, " << lit->value << "\n";
+       std::ostringstream ss;
+       ss << std::showpoint << lit->value;
+       out << "    " << reg << " = fadd " << llvmType(varType) << " 0.0, " << ss.str() << "\n";
        return reg;
    }
 
