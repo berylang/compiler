@@ -90,14 +90,6 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
        errors = true;
        return;
    }
-
-   if (decl->initializers.size() == 1 &&
-        decl->initializers[0]->type == NodeType::NULL_LIT) {
-
-        symbolTable.add(decl->name, {decl->elementType + "[]" , false, true,0});
-        return;
-    }
-
 for (auto& initVal : decl->initializers) {
        if (!typeMatchesLiteral(decl->elementType, initVal->type)) {
            std::cerr << "bery: error: type mismatch in array initialization for '" << decl->name << "'.\n";
