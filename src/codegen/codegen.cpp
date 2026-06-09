@@ -121,6 +121,7 @@ void CodeGen::genArrayDecl(ASTNode* node, std::ostream& out) {
 
 std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out) {
    if(!node){return "0";}
+   if (node->type == NodeType::NULL_LIT) {return "null";}
    std::string lt = llvmType(expectedType);
    bool isFloat = (expectedType=="float" || expectedType=="double");
    if (node->type == NodeType::INT_LIT) {

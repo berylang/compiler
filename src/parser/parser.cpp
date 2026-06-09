@@ -110,6 +110,9 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
         case TokenType::TOKEN_STRING_LIT:
             advance();
             return std::make_unique<StringLitNode>(t.lexeme);
+        case TokenType::TOKEN_NULL:
+            advance();
+            return std::make_unique<NullLitNode>();
         default:
             errors = true;
             throw std::runtime_error("Expected literal at line " + std::to_string(t.line));
@@ -289,6 +292,14 @@ std::unique_ptr<ASTNode> Parser::parseArrayDecl() {
     std::vector<std::unique_ptr<ASTNode>> initializers;
     if (check(TokenType::TOKEN_EQUAL)) {
         advance(); 
+
+        if (!check(TokenType::TOKEN_LBRACE)) {
+            std::cerr << "Bery:Error: Arrays must be initialized with list inside '{}' at line " << peek().line << "\n";
+            errors = true;
+            while (!isAtEnd() && !check(TokenType::TOKEN_SEMICOLON)) advance();
+            return std::make_unique<ArrayDeclNode>(elementType, name, size, std::move(initializers));
+        }
+
         consume(TokenType::TOKEN_LBRACE, "Expected '{'");
         
         if (!check(TokenType::TOKEN_RBRACE)) {

@@ -1,6 +1,4 @@
-int garr[]=null;
 
 run {
-    int arr1[]=null;
     string s1 =null;
 }
