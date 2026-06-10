@@ -154,6 +154,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
 
             std::string lType = analyzeExpression(binary->left.get());
             std::string rType = analyzeExpression(binary->right.get());
+            
 
             if(lType != rType){
                 if ((lType == "bigint" && rType == "int") ||
@@ -185,6 +186,18 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                 std::cerr<<"Bery:Error: Type mismatch in binary expression\n";
                 errors=true;
                 return "unknown";
+            }
+            if(binary->optr=="<<" || binary->optr==">>"){
+                if(rType!="int" && rType!="bigint"){
+                    std::cerr<<"Bery:Error: Right operand should be in integer type\n";
+                    errors=true;
+                    return "unknown";
+                }
+                if(binary->right < 0){
+                    std::cerr<<"Bery:Error: Right operand should cannot be negative integer\n";
+                    errors=true;
+                    return "unknown";
+                }
             }
             return lType;
         }

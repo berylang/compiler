@@ -35,5 +35,6 @@ class Parser {
     std::unique_ptr<ASTNode> parseUnary();
     std::unique_ptr<ASTNode> parseMultiplicative();
     std::unique_ptr<ASTNode> parseAdditive();
+    std::unique_ptr<ASTNode> parseShift();
 };
 

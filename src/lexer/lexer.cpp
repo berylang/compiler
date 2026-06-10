@@ -152,7 +152,41 @@ void Lexer::scanToken() {
         case ')':
             tokens.push_back({TokenType::TOKEN_RPARAN, ")", line});
             return;
-    }
+        case '<':
+            if(peek()=='<'){
+                
+                tokens.push_back({TokenType::TOKEN_LSHIFT, "<<", line});
+                return;
+            }
+            else if(peek()=='='){
+                //@todo: Add TOKEN_LESSEQ
+                return;
+            }
+            else{
+                //@todo: Add TOKEN_LESSTHAN
+                return;
+            }
+            break;
+        case '>':
+            if(peek()=='>'){
+                
+                tokens.push_back({TokenType::TOKEN_RSHIFT, ">>", line});
+                return;
+            }
+            else if(peek()=='<'){
+                //@todo: Add TOKEN_BETWEEN
+                return;
+            }
+            else if(peek()=='='){
+                //@todo: Add TOKEN_GREATEQ
+                return;
+            }
+            else{
+                //@todo: Add TOKEN_GREATTHAN
+                return;
+            }
+            break;
+        }
 }
 //@todo - add TOKEN_DECIMAL_LIT;
 void Lexer::scanNumber() {
