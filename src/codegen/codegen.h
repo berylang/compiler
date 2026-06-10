@@ -15,6 +15,7 @@ private:
    int regCounter;
    int strCounter = 0;
    std::ostringstream globalStrings;
+   std::string extractConstant(ASTNode* node);
 
    std::string newReg();
    std::string llvmType(const std::string& berryType);

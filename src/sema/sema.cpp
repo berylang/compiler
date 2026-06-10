@@ -87,10 +87,26 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
        return;
    }
     for (auto& initVal : decl->initializers) {
-        if (!typeMatchesLiteral(decl->elementType, initVal->type)) {
-            std::cerr << "bery: error: type mismatch in array initialization for '" << decl->name << "'.\n";
-            errors = true;
-            return;
+        std::string exprType = analyzeExpression(initVal.get());
+
+        if (exprType != "unknown" && exprType != decl->elementType) {
+            if (exprType == "null") {
+                if (decl->elementType != "string") {
+                    std::cerr << "Bery:Error: Cannot assign 'null' to non-reference type '" << decl->elementType << "'\n";
+                    errors = true;
+                    return;
+                }
+                continue;
+            }
+            if (!(decl->elementType == "float" && exprType == "int") &&
+                !(decl->elementType == "float" && exprType == "double") &&
+                !(decl->elementType == "double" && exprType == "int") &&
+                !(decl->elementType == "double" && exprType == "float") &&
+                !(decl->elementType == "bigint" && exprType == "int")) {
+                    std::cerr << "Bery:Error: Type mismatch in array initialization for '"<<decl->name<<"' . Expected '"<<decl->elementType<<"', got '"<<exprType<<"' \n";
+                    errors = true;
+                    return;
+                }
         }
    }
 

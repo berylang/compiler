@@ -36,20 +36,7 @@ void CodeGen::generate(const std::string& outputPath) {
        if (node->type == NodeType::VAR_DECL) {
            auto* decl = static_cast<VarDeclNode*>(node.get());
            std::string lt = llvmType(decl->varType);
-           std::string initVal = "0";
-           if (decl->value) {
-               if (decl->value->type == NodeType::INT_LIT) {
-                initVal = std::to_string(static_cast<IntLitNode*>(decl->value.get())->value);
-               } 
-               else if (decl->value->type == NodeType::DECIMAL_LIT ){
-                   initVal = std::to_string(static_cast<DecimalLitNode*>(decl->value.get())->value);
-               }
-               else if (decl->value->type == NodeType::BOOL_LIT) {
-                initVal = static_cast<BoolLitNode*>(decl->value.get())->value? "1" :"0";
-               }else if (decl->value->type == NodeType::CHAR_LIT) {
-            initVal = std::to_string(static_cast<CharLitNode*>(decl->value.get())->value);
-           } 
-           }
+           std::string initVal = extractConstant(decl->value.get());
            out << "@" << decl->name << " = global " << lt << " " << initVal << "\n";
        } 
        else if (node->type == NodeType::ARRAY_DECL) {
@@ -64,15 +51,7 @@ void CodeGen::generate(const std::string& outputPath) {
            } else {
                initVal = "[";
                for (size_t i = 0; i < decl->initializers.size(); ++i) {
-                   std::string elemVal = "0";
-                   auto* initNode = decl->initializers[i].get();
-                   if (initNode->type == NodeType::INT_LIT) {
-                       elemVal = std::to_string(static_cast<IntLitNode*>(initNode)->value);
-                   } else if (initNode->type == NodeType::DECIMAL_LIT) {
-                       elemVal = std::to_string(static_cast<DecimalLitNode*>(initNode)->value);
-                   } else if (initNode->type == NodeType::BOOL_LIT) {
-                       elemVal = static_cast<BoolLitNode*>(initNode)->value ? "1" : "0";
-                   }
+                   std::string elemVal = extractConstant(decl->initializers[i].get());
                    initVal += lt + " " + elemVal;
                    if (i + 1 < decl->initializers.size()) {
                        initVal += ", ";
@@ -255,6 +234,33 @@ std::string CodeGen::escapeLLVMString(const std::string& str) {
     
     escaped << "\\00";
     return escaped.str();
+}
+
+std::string CodeGen::extractConstant(ASTNode* node) {
+    if (!node) return "0";
+    if (node->type == NodeType::INT_LIT) {
+        return std::to_string(static_cast<IntLitNode*>(node)->value);
+    } else if (node->type == NodeType::DECIMAL_LIT) {
+        std::ostringstream ss;
+        ss << std::showpoint << static_cast<DecimalLitNode*>(node)->value;
+        return ss.str();
+    } 
+    else if (node->type == NodeType::BOOL_LIT) {
+        return static_cast<BoolLitNode*>(node)->value ? "1" : "0";
+    } 
+    else if (node->type == NodeType::CHAR_LIT) {
+        return std::to_string(static_cast<CharLitNode*>(node)->value);
+    }
+    else if (node->type == NodeType::NULL_LIT) {
+        return "null";
+    }
+    else if (node->type == NodeType::UNARY_EXPR) {
+        auto* unary = static_cast<UnaryExprNode*>(node);
+        if (unary->optr == "-") {
+            return "-" + extractConstant(unary->operand.get());
+        }
+    }
+    return "0";
 }
 std::string CodeGen::newReg() {
    return "%" + std::to_string(++regCounter);
