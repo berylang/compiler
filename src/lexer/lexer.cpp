@@ -186,6 +186,15 @@ void Lexer::scanToken() {
                 return;
             }
             break;
+        case '^':
+            tokens.push_back({TokenType::TOKEN_CARET, "^", line});
+            break;
+        case '&':
+            tokens.push_back({TokenType::TOKEN_AMPERSAND, "&", line});
+            break;
+        case '|':
+            tokens.push_back({TokenType::TOKEN_PIPE, "|", line});
+            break;
         }
 }
 //@todo - add TOKEN_DECIMAL_LIT;

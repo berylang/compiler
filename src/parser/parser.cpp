@@ -122,7 +122,7 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
 
 std::unique_ptr<ASTNode> Parser::parseExpression(){
     //@change: When you implement top level expression change the call here
-    return parseShift();
+    return parseBitwise();
 }
 
 std::unique_ptr<ASTNode> Parser::parsePrimary(){
@@ -245,6 +245,25 @@ std::unique_ptr<ASTNode> Parser::parseShift(){
         advance();
 
         auto right = parseAdditive();
+
+        left = std::make_unique<BinaryExprNode>(
+            op,
+            std::move(left),
+            std::move(right)
+        );
+    }
+    return left;
+}
+
+std::unique_ptr<ASTNode> Parser::parseBitwise(){
+    auto left = parseShift();
+
+    while(check(TokenType::TOKEN_AMPERSAND) || check(TokenType::TOKEN_CARET) || check(TokenType::TOKEN_PIPE)){
+
+        std::string op = peek().lexeme;
+        advance();
+
+        auto right = parseShift();
 
         left = std::make_unique<BinaryExprNode>(
             op,

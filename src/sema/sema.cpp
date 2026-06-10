@@ -215,7 +215,17 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                     return "unknown";
                 }
             }
-            return lType;
+            if(binary->optr=="&" || binary->optr=="^" || binary->optr=="|"){
+                if((lType!="int" && lType!="bigint") || (rType!="int" && rType!="bigint")){
+                    std::cerr<<"Bery:Error: Bitwise operators require integer operands\n";
+                    errors=true;
+                    return "unknown";
+                }
+                if(lType=="bigint" || rType=="bigint"){
+                    return "bigint";
+                }
+                return "int";
+            }
         }
         default:
             std::cerr<<"Bery:Error: Unknown expression \n";
