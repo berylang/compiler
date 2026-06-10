@@ -31,6 +31,7 @@ void CodeGen::generate(const std::string& outputPath) {
    body << "    ret i32 0\n";
    body << "}\n";
    std::ofstream out(outputPath);
+   out << "declare double @llvm.pow.f64(double, double)\n";
 
    for (auto& node : program->globals) {
        if (node->type == NodeType::VAR_DECL) {
@@ -106,7 +107,13 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
    if (node->type == NodeType::INT_LIT) {
         std::string reg = newReg();
        auto* lit = static_cast<IntLitNode*>(node);
-       out << "    " << reg << " = add " << lt << " 0, " << lit->value << "\n";
+
+       if(isFloat){
+            out << "    " << reg << " = fadd " << lt << " 0.0, " << lit->value << ".0\n";
+       }else{
+            out << "    " << reg << " = add " << lt << " 0, " << lit->value << "\n";
+       }
+       
        return reg;
    }
 
@@ -201,7 +208,62 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         }
     }
    }
-   
+
+    if(node->type == NodeType::BINARY_EXPR){
+        auto* binary = static_cast<BinaryExprNode*>(node);
+
+        std::string leftReg = genExpression(binary->left.get(), expectedType, out);
+        std::string rightReg = genExpression(binary->right.get(), expectedType, out);
+        std::string resultReg = newReg();
+
+        if(isFloat){
+            if(binary->optr == "+"){
+                out << "    " << resultReg << " = fadd " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "-"){
+                out << "    " << resultReg << " = fsub " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "*"){
+                out << "    " << resultReg << " = fmul " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "/"){
+                out << "    " << resultReg << " = fdiv " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "**"){
+                if(expectedType == "float"){
+                    out << "    " << resultReg << " = call float @llvm.pow.f32(float " << leftReg << ", float " << rightReg << ")\n";
+                }else{
+                    out << "    " << resultReg << " = call double @llvm.pow.f64(double " << leftReg << ", double " << rightReg << ")\n";
+                }
+            }else{
+                return "0";
+            }
+        }else{
+            if(binary->optr == "+"){
+                out << "    " << resultReg << " = add " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "-"){
+                out << "    " << resultReg << " = sub " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "*"){
+                out << "    " << resultReg << " = mul " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "/"){
+                out << "    " << resultReg << " = sdiv " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "%"){
+                out << "    " << resultReg << " = srem " << lt << " " << leftReg << ", " << rightReg << "\n";
+            }else if(binary->optr == "**"){
+                std::string leftDouble = newReg();
+                std::string rightDouble = newReg();
+
+                out << "    " << leftDouble << " = sitofp " << lt << " " << leftReg << " to double\n";
+                out << "    " << rightDouble << " = sitofp " << lt << " " << rightReg << " to double\n";
+
+                std::string powReg = newReg();
+
+                out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
+                out << "    " << resultReg << " = fptosi double " << powReg << " to " << lt << "\n";
+            }else{
+                return "0";
+            }
+        }
+
+        return resultReg;
+    }
+
    return "0";
 }
 

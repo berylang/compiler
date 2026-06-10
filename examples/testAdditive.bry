@@ -1,3 +1,3 @@
 run {
-    float a = 2 + 2 ;
+    double a = 10.2 ** 2.3;
 }
