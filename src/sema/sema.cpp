@@ -172,61 +172,38 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             std::string rType = analyzeExpression(binary->right.get());
             
 
+            std::string resolvedType = lType;
             if(lType != rType){
-                if ((lType == "bigint" && rType == "int") ||
-                    (lType == "int" && rType == "bigint")) {
-                    return "int";
+                if ((lType == "bigint" && rType == "int") ||(lType == "int" && rType == "bigint")) {
+                    resolvedType = "bigint";
                 }
-                if ((lType == "float" && rType == "int") ||
-                    (lType == "int" && rType == "float")) {
-                    return "float";
+                else if ((lType == "float" && rType == "int") || (lType == "int" && rType == "float")) {
+                    resolvedType = "float";
                 }
-                if ((lType == "bigint" && rType == "float") ||
-                    (lType == "float" && rType == "bigint")) {
-                    return "float";
+                else if ((lType == "bigint" && rType == "float") || (lType == "float" && rType == "bigint")) {
+                    resolvedType = "float";
                 }
-                
-                if ((lType == "bigint" && rType == "double") ||
-                    (lType == "double" && rType == "bigint")) {
-                    return "double";
+                else if ((lType == "bigint" && rType == "double") || (lType == "double" && rType == "bigint")) {
+                    resolvedType = "double";
                 }
-                 if ((lType == "int" && rType == "double") ||
-                    (lType == "double" && rType == "int")) {
-                    return "double";
+                else if ((lType == "int" && rType == "double") || (lType == "double" && rType == "int")) {
+                    resolvedType = "double";
                 }
-                if ((lType == "float" && rType == "double") ||
-                    (lType == "double" && rType == "float")) {
-                    return "double";
+                else if ((lType == "float" && rType == "double") || (lType == "double" && rType == "float")) {
+                    resolvedType = "double";
                 }
+                else {
+                    std::cerr<<"Bery:Error: Type mismatch in binary expression '" << lType << "' and '" << rType <<"\n";
+                    errors=true;
+                    return "unknown";
+                }
+            }
 
-                std::cerr<<"Bery:Error: Type mismatch in binary expression\n";
-                errors=true;
-                return "unknown";
-            }
-            if(binary->optr=="<<" || binary->optr==">>"){
-                if(rType!="int" && rType!="bigint"){
-                    std::cerr<<"Bery:Error: Right operand should be in integer type\n";
-                    errors=true;
-                    return "unknown";
-                }
-                if(binary->right < 0){
-                    std::cerr<<"Bery:Error: Right operand should cannot be negative integer\n";
-                    errors=true;
-                    return "unknown";
-                }
-            }
-            if(binary->optr=="&" || binary->optr=="^" || binary->optr=="|"){
-                if((lType!="int" && lType!="bigint") || (rType!="int" && rType!="bigint")){
-                    std::cerr<<"Bery:Error: Bitwise operators require integer operands\n";
-                    errors=true;
-                    return "unknown";
-                }
-                if(lType=="bigint" || rType=="bigint"){
-                    return "bigint";
-                }
-                return "int";
-            }
-            if(binary->optr=="=="||binary->optr=="!="||binary->optr==">"||binary->optr==">="||binary->optr=="<"||binary->optr=="<="){
+            binary->opType = resolvedType;
+
+            if( binary->optr=="==" || binary->optr=="!=" ||
+                binary->optr==">"  || binary->optr==">=" ||
+                binary->optr=="<"  || binary->optr=="<=" ){
                 if(binary->optr!= "==" && binary->optr!= "!="){
                     if(lType=="string" || lType=="bool" || rType=="string" || rType=="bool"){
                         std::cerr<<"Bery:Error: Relational Operator '"<<binary->optr<<"' cannot be used on type '"<<lType<<"' and '"<<rType<<"'\n";
@@ -234,7 +211,31 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                         return "unknown";
                     }
                 }
+                return "bool";
             }
+            
+            if(binary->optr=="<<" || binary->optr==">>"){
+                if(rType!="int" && rType!="bigint"){
+                    std::cerr<<"Bery:Error: Right operand should be in integer type\n";
+                    errors=true;
+                    return "unknown";
+                }
+                if(resolvedType != "int" && resolvedType != "bigint"){
+                    std::cerr << "Bery:Error: Left operand of shift must be an integer type\n";
+                    errors = true;
+                    return "unknown";
+                }
+                return resolvedType;
+            }
+            if(binary->optr=="&" || binary->optr=="^" || binary->optr=="|"){
+                if((lType!="int" && lType!="bigint") || (rType!="int" && rType!="bigint")){
+                    std::cerr<<"Bery:Error: Bitwise operators require integer operands\n";
+                    errors=true;
+                    return "unknown";
+                }
+                return resolvedType;
+            }
+            return resolvedType;
         }
         case NodeType::BETWEEN_EXPR:{
             auto* between = static_cast<BetweenExprNode*>(node);

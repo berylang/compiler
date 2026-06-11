@@ -4,16 +4,18 @@
 #include <string>
 #include <unordered_map>
 #include "../parser/ast/node.h"
+#include "../sema/symboltable.h"
 
 class CodeGen {
 public:
-   CodeGen(ASTNode* root);
+   CodeGen(ASTNode* root, SymbolTable& symTable);
    void generate(const std::string& outputPath);
 
 private:
    ASTNode* root;
    int regCounter;
    int strCounter = 0;
+   SymbolTable& symTable;
    std::ostringstream globalStrings;
    std::string extractConstant(ASTNode* node);
 

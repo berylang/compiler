@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include "../parser/ast/node.h"
-#include "symbotltable.h"
+#include "symboltable.h"
 
 
 class SemanticAnalyzer {
@@ -9,11 +9,12 @@ public:
    SemanticAnalyzer(ASTNode* root);
    void analyze();
    bool hasErrors();
+   SymbolTable symbolTable;
 
 
 private:
    ASTNode* root;
-   SymbolTable symbolTable;
+   
    bool errors;
 
 

@@ -46,7 +46,7 @@ void Lexer::scanToken() {
             if(peek()=='='){
                 advance();
                 tokens.push_back({TokenType::TOKEN_EQUAL_EQUAL,"==",line});
-               return;
+                return;
             }
             tokens.push_back({TokenType::TOKEN_EQUAL, "=", line});
             break;
@@ -122,6 +122,7 @@ void Lexer::scanToken() {
             break;
         case '+':
             if(peek()=='+'){
+                advance();
                 tokens.push_back({TokenType::TOKEN_INC, "++", line});
                 return;
             }
@@ -144,6 +145,7 @@ void Lexer::scanToken() {
                 return;
             }
             else if(peek()=='>' && peekNext()=='<'){
+                advance();
                 advance();
                 tokens.push_back({TokenType::TOKEN_NOT_BETWEEN, "!><", line});
                 return;
@@ -177,11 +179,12 @@ void Lexer::scanToken() {
             break;
         case '>':
             if(peek()=='>'){
-                
+                advance();
                 tokens.push_back({TokenType::TOKEN_RSHIFT, ">>", line});
                 return;
             }
             else if(peek()=='<'){
+                advance();
                 tokens.push_back({TokenType::TOKEN_BETWEEN, "><", line});
                 return;
             }

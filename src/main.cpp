@@ -47,9 +47,8 @@ int main(int argc, char* argv[]) {
    sema.analyze();
    if (sema.hasErrors()) { std::cerr << "bery: semantic errors\n"; return 6; }
 
-
    std::string irFile = "bery_out.ll";
-CodeGen codegen(ast.get());
+CodeGen codegen(ast.get(), sema.symbolTable);
 codegen.generate(irFile);
 
     std::cout << "Bery: " << BERY_VERSION << " compiled successfully\n";

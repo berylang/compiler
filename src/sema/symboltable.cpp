@@ -1,4 +1,4 @@
-#include "symbotltable.h"
+#include "symboltable.h"
 #include <stdexcept>
 
 

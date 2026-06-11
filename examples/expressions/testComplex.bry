@@ -1,0 +1,18 @@
+run {
+    bool t1 = 10 + 5 * 2 ** 3 >= 40 - 10 / 2;
+
+    int radius = 2;
+    double t2 = 10 + 3.14 * radius;
+
+    int t3 = (10 << 1) & (20 >> 1) | (15 % 4);
+
+    bool t4 = (15.5 + 15) >< 10, 50.0;
+
+    bool t5 = 5 !>< 10, 20 == true;
+
+    int step = 5;
+    int t6 = -step + ~(10 & 5);
+    int t7 = step++ + --t6;
+
+    bool bossfight = ((100 >> 2) + 5.5) >< 10.0, 50.0 != false;
+}

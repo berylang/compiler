@@ -29,11 +29,13 @@ struct BinaryExprNode : public ASTNode{
     std::string optr;
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
+    std::string opType;
 
     BinaryExprNode(std::string& opr, std::unique_ptr<ASTNode> l,std::unique_ptr<ASTNode> r):
         optr(opr),
         left(std::move(l)),
-        right(std::move(r))
+        right(std::move(r)),
+        opType("int")
         {
             type = NodeType::BINARY_EXPR;
         }

@@ -9,6 +9,8 @@ add_executable(bery
     src/sema/sema.cpp
     src/sema/symboltable.cpp
     src/codegen/codegen.cpp
+    src/codegen/irgen/declarations.cpp
+    src/codegen/irgen/expressions.cpp
 )
 
 target_include_directories(bery PRIVATE src)
