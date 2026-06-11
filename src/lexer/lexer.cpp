@@ -248,7 +248,7 @@ void Lexer::scanCharLit() {
 
     if (peek() == '\'') { 
         errors = true;
-        std::cerr << "Bery:Error:Empty Char Literal\n";
+        std::cerr << "Bery:Error [Line "<< line << "]: Empty Char Literal\n";
         advance(); 
         return;
     }
@@ -259,7 +259,7 @@ void Lexer::scanCharLit() {
         advance(); 
         if (isAtEnd() || peek() == '\'') { 
             errors = true;
-            std::cerr << "Bery:Error:Incomplete Escape Sequence\n";
+            std::cerr << "Bery:Error [Line " << line <<"]: Incomplete Escape Sequence\n";
             return;
         }
 
@@ -274,7 +274,7 @@ void Lexer::scanCharLit() {
             case '\'': value = '\''; break;
             default:
                 errors = true;
-                std::cerr << "Bery:Error:Invalid Escape Sequence\n";
+                std::cerr << "Bery:Error [Line " << line <<"]: Invalid Escape Sequence\n";
                 return;
         }
     } 
@@ -282,7 +282,7 @@ void Lexer::scanCharLit() {
     else {
         if (peek() == '\n' || peek() == '\r') {
             errors = true;
-            std::cerr << "Bery:Error:Newline in char literal\n";
+            std::cerr << "Bery:Error [Line " << line <<"]: Newline in char literal\n";
             return;
         }
         value = advance();
@@ -305,9 +305,9 @@ void Lexer::scanCharLit() {
     errors = true;
 
     if (foundClosingQuote) {
-        std::cerr << "Bery:Error:Multi-character Char Literal\n";
+        std::cerr << "Bery:Error [Line " << line <<"]: Multi-character Char Literal\n";
     } else {
-        std::cerr << "Bery:Error:Unclosed Char Literal\n";
+        std::cerr << "Bery:Error [Line " << line <<"]: Unclosed Char Literal\n";
     }
 }
 
@@ -330,7 +330,7 @@ void Lexer::scanStringLit() {
                 case '\'': value += '\''; break;
                 default:
                     errors = true;
-                    std::cerr << "Bery:Error: Invalid escape sequence in string at line " << line << "\n";
+                    std::cerr << "Bery:Error [Line " << line <<"]: Invalid escape sequence in string\n";
                     value += es; 
                     break;
             }
@@ -340,7 +340,7 @@ void Lexer::scanStringLit() {
     }
     if (isAtEnd()) {
         errors = true;
-        std::cerr << "Bery:Error: Unclosed string literal at line " << line << "\n";
+        std::cerr << "Bery:Error [Line " << line <<"]: Unclosed string literal\n";
         return;
     }
 
@@ -384,7 +384,7 @@ void Lexer::skipComments(bool isMLC){
             advance();
         }
         errors=true;
-        std::cerr<<"Bery:Error:Unclosed Comments\n";
+        std::cerr<<"Bery:Error [Line " << line <<"]: Unclosed Comments\n";
         
     }
     else{

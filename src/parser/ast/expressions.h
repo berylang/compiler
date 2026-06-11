@@ -9,9 +9,10 @@ struct UnaryExprNode : public ASTNode{
     std::string optr;
     std::unique_ptr<ASTNode> operand;
 
-    UnaryExprNode(std::string& opr, std::unique_ptr<ASTNode> expr):
+    UnaryExprNode(std::string& opr, std::unique_ptr<ASTNode> expr, int ln):
         optr(opr), operand(std::move(expr)){
             type = NodeType::UNARY_EXPR;
+            line = ln;
         }
 
 };
@@ -19,9 +20,10 @@ struct UnaryExprNode : public ASTNode{
 struct GroupedExprNode : public ASTNode{
     std::unique_ptr<ASTNode> expression;
 
-    GroupedExprNode(std::unique_ptr<ASTNode> expr):
+    GroupedExprNode(std::unique_ptr<ASTNode> expr, int ln):
         expression(std::move(expr)){
             type = NodeType::GROUPED_EXPR;
+            line = ln;
         }
 };
 
@@ -31,13 +33,14 @@ struct BinaryExprNode : public ASTNode{
     std::unique_ptr<ASTNode> right;
     std::string opType;
 
-    BinaryExprNode(std::string& opr, std::unique_ptr<ASTNode> l,std::unique_ptr<ASTNode> r):
+    BinaryExprNode(std::string& opr, std::unique_ptr<ASTNode> l,std::unique_ptr<ASTNode> r, int ln):
         optr(opr),
         left(std::move(l)),
         right(std::move(r)),
         opType("int")
         {
             type = NodeType::BINARY_EXPR;
+            line = ln;
         }
 
 };
@@ -53,7 +56,8 @@ struct BetweenExprNode : public ASTNode{
         std::unique_ptr<ASTNode> val,
         std::unique_ptr<ASTNode> low,
         std::unique_ptr<ASTNode> up,
-        bool neg
+        bool neg,
+        int ln
     )
         : value(std::move(val)),
           lower(std::move(low)),
@@ -62,6 +66,7 @@ struct BetweenExprNode : public ASTNode{
           opType("int")
     {
         type = NodeType::BETWEEN_EXPR;
+        line = ln;
     }
 };
 
@@ -71,8 +76,9 @@ struct TernaryExprNode : public ASTNode {
     std::unique_ptr<ASTNode> falseExpr;
     std::string resolvedType;
 
-    TernaryExprNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> te, std::unique_ptr<ASTNode> fe) :
+    TernaryExprNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> te, std::unique_ptr<ASTNode> fe, int ln) :
     condition(std::move(c)), trueExpr(std::move(te)), falseExpr(std::move(fe)), resolvedType("int") {
         type = NodeType::TERNARY_EXPR;
+        line = ln;
     }
 };

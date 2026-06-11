@@ -3,7 +3,10 @@
 #include "../lexer/token.h"
 #include <vector>
 #include <memory>
+#include <exception>
 
+
+class ParseError : public std::exception {};
 class Parser {
     public:
     Parser(const std::vector<Token>& tokens);
@@ -22,6 +25,7 @@ class Parser {
     bool check(TokenType type);
     Token consume(TokenType type, const std::string& msg);
     bool isTypeToken(TokenType t);
+    void synchronize();
     
     std::vector<std::unique_ptr<ASTNode>> parseVarDecl(bool isConst);
     std::unique_ptr<ASTNode> parseLiteral();

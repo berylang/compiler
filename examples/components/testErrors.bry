@@ -1,0 +1,13 @@
+int globalVar = 100;
+
+string brokenString = "This has end quote";
+
+run {
+    int a = 10
+    int b = 3.14;
+
+    c = a + b;
+
+    int arr[2] = {1, 2, 3};
+    int success = 1;
+}

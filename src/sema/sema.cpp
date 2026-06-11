@@ -30,12 +30,12 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
 void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
    auto* decl = static_cast<VarDeclNode*>(node);
    if (symbolTable.exists(decl->name)) {
-       std::cerr << "bery: error: '" << decl->name << "' already declared.\n";
+       std::cerr << "Bery:Error [Line "<< decl->line<< "]: '" << decl->name << "' already declared.\n";
        errors = true;
        return;
    }
    if (decl->isConst && !decl->value) {
-       std::cerr << "bery: error: const '" << decl->name << "' must be initialized.\n";
+       std::cerr << "Bery:Error [Line "<< decl->line <<"]: constant '" << decl->name << "' must be initialized.\n";
        errors = true;
        return;
    }
@@ -45,7 +45,7 @@ void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
         if(exprtype!="unknown" && exprtype!=decl->varType){
             if (exprtype == "null") {
                 if (decl->varType != "string") {
-                    std::cerr << "Bery:Error: Cannot assign 'null' to non-reference type '" << decl->varType << "'\n";
+                    std::cerr << "Bery:Error [Line "<< decl->line << "]: Cannot assign 'null' to non-reference type '" << decl->varType << "'\n";
                     errors = true;
                     return;
                 }
@@ -55,7 +55,7 @@ void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
             !(decl->varType == "bigint" && exprtype == "int")&&
             !(decl->varType == "double" && exprtype == "float")&&
             !(decl->varType == "float" && exprtype == "double")){
-                std::cerr<<"Bery:Error: Type mismatch for "<<decl->name<<" . Expected '"<<decl->varType<<"', got '"<<exprtype<<"' \n";
+                std::cerr<<"Bery:Error [Line " << decl->line << "]: Type mismatch for "<<decl->name<<" . Expected '"<<decl->varType<<"', got '"<<exprtype<<"' \n";
                 errors = true;
                 return;
             }
@@ -67,22 +67,22 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
    auto* decl = static_cast<ArrayDeclNode*>(node);
 
    if (symbolTable.exists(decl->name)) {
-       std::cerr << "bery: error: '" << decl->name << "' already declared.\n";
+       std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' already declared.\n";
        errors = true;
        return;
    }
     if (decl->size == 0) {
-       std::cerr << "bery: error: array '" << decl->name << "' size must be greater than 0.\n";
+       std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' size must be greater than 0.\n";
        errors = true;
        return;
    }
     if (decl->size < 0 && decl->initializers.empty()) {
-       std::cerr << "bery: error: unsized array '" << decl->name << "' must have an initializer list.\n";
+       std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' must have an initializer list.\n";
        errors = true;
        return;
    }
     if (decl->size >= 0 && decl->initializers.size() > (size_t)decl->size) {
-       std::cerr << "bery: error: initializer list count exceeds array size for '" << decl->name << "'. It should be in Declared size\n";
+       std::cerr << "Bery:Error [Line "<< decl->line <<"]: initializer list count exceeds array size for '" << decl->name << "'. It should be in Declared size\n";
        errors = true;
        return;
    }
@@ -92,7 +92,7 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
         if (exprType != "unknown" && exprType != decl->elementType) {
             if (exprType == "null") {
                 if (decl->elementType != "string") {
-                    std::cerr << "Bery:Error: Cannot assign 'null' to non-reference type '" << decl->elementType << "'\n";
+                    std::cerr << "Bery:Error [Line "<< decl->line <<"]: Cannot assign 'null' to non-reference type '" << decl->elementType << "'\n";
                     errors = true;
                     return;
                 }
@@ -103,7 +103,7 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
                 !(decl->elementType == "double" && exprType == "int") &&
                 !(decl->elementType == "double" && exprType == "float") &&
                 !(decl->elementType == "bigint" && exprType == "int")) {
-                    std::cerr << "Bery:Error: Type mismatch in array initialization for '"<<decl->name<<"' . Expected '"<<decl->elementType<<"', got '"<<exprType<<"' \n";
+                    std::cerr << "Bery:Error [Line "<< decl->line <<"]: Type mismatch in array initialization for '"<<decl->name<<"' . Expected '"<<decl->elementType<<"', got '"<<exprType<<"' \n";
                     errors = true;
                     return;
                 }
@@ -138,7 +138,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
         case NodeType::IDENT:{
             auto* ident = static_cast<IdentNode*>(node);
             if(!symbolTable.exists(ident->name)){
-                std::cerr<<"Bery:Error: Undefined Variable '"<<ident->name<<"'\n";
+                std::cerr<<"Bery:Error [Line "<< ident->line <<"]: Undefined Variable '"<<ident->name<<"'\n";
                 errors=true;
                 return "unknown";
             }
@@ -154,7 +154,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             std::string optype = analyzeExpression(unary->operand.get());
             if(unary->optr=="++"||unary->optr=="--"||unary->optr=="post++"||unary->optr=="post--"){
                 if(unary->operand->type != NodeType::IDENT){
-                    std::cerr<<"Bery:Error: Identifier requried as operand of increment or decrement optr\n";
+                    std::cerr<<"Bery:Error [Line "<< unary->line <<"]: Identifier requried as operand of increment or decrement operator\n";
                     errors = true;
                     return "unknown";
                 }
@@ -193,7 +193,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                     resolvedType = "double";
                 }
                 else {
-                    std::cerr<<"Bery:Error: Type mismatch in binary expression '" << lType << "' and '" << rType <<"\n";
+                    std::cerr<<"Bery:Error [Line "<< binary->line <<"]: Type mismatch in binary expression '" << lType << "' and '" << rType <<"\n";
                     errors=true;
                     return "unknown";
                 }
@@ -203,7 +203,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
 
             if(binary->optr== "&&" || binary->optr== "||"){
                 if(lType!="bool" || rType!="bool"){    
-                    std::cerr<<"Bery:Error: Logical Operator '"<<binary->optr<<"' cannot be used on type '"<<lType<<"' and '"<<rType<<"'\n";
+                    std::cerr<<"Bery:Error [Line "<< binary->line <<"]: Logical Operator '"<<binary->optr<<"' cannot be used on type '"<<lType<<"' and '"<<rType<<"'\n";
                     errors=true;
                     return "unknown";
                 }
@@ -215,7 +215,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                 binary->optr=="<"  || binary->optr=="<=" ){
                 if(binary->optr!= "==" && binary->optr!= "!="){
                     if(lType=="string" || lType=="bool" || rType=="string" || rType=="bool"){
-                        std::cerr<<"Bery:Error: Relational Operator '"<<binary->optr<<"' cannot be used on type '"<<lType<<"' and '"<<rType<<"'\n";
+                        std::cerr<<"Bery:Error [Line "<< binary->line <<"]: Relational Operator '"<<binary->optr<<"' cannot be used on type '"<<lType<<"' and '"<<rType<<"'\n";
                         errors=true;
                         return "unknown";
                     }
@@ -225,12 +225,12 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             
             if(binary->optr=="<<" || binary->optr==">>"){
                 if(rType!="int" && rType!="bigint"){
-                    std::cerr<<"Bery:Error: Right operand should be in integer type\n";
+                    std::cerr<<"Bery:Error [Line "<< binary->line <<"]: Right operand of shift operators should be in integer type\n";
                     errors=true;
                     return "unknown";
                 }
                 if(resolvedType != "int" && resolvedType != "bigint"){
-                    std::cerr << "Bery:Error: Left operand of shift must be an integer type\n";
+                    std::cerr << "Bery:Error [Line "<< binary->line <<"]: Left operand of shift must be an integer type\n";
                     errors = true;
                     return "unknown";
                 }
@@ -238,7 +238,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             }
             if(binary->optr=="&" || binary->optr=="^" || binary->optr=="|"){
                 if((lType!="int" && lType!="bigint") || (rType!="int" && rType!="bigint")){
-                    std::cerr<<"Bery:Error: Bitwise operators require integer operands\n";
+                    std::cerr<<"Bery:Error [Line "<< binary->line <<"]: Bitwise operators require integer operands\n";
                     errors=true;
                     return "unknown";
                 }
@@ -257,7 +257,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             };
 
             if(!validType(valueType) || !validType(lowerType) || !validType(upperType)){
-                std::cerr<<"Bery:Error: Between operator supports only int, bigint, float, double and char\n";
+                std::cerr<<"Bery:Error [Line "<< between->line <<"]: Between operator supports only int, bigint, float, double and char\n";
                 errors = true;
                 return "unknown";
             }
@@ -274,7 +274,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             auto* tern = static_cast<TernaryExprNode*>(node);
             std::string condType = analyzeExpression(tern->condition.get());
             if (condType != "bool") {
-                std::cerr << "Bery:Error: ternary condition must be 'bool', got '" << condType << "'\n";
+                std::cerr << "Bery:Error [Line "<< tern->line <<"]: ternary condition must be 'bool', got '" << condType << "'\n";
                 errors = true;
                 return "unknown";
             }
@@ -290,7 +290,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                 else if ((tType == "int" && fType == "double") || (tType == "double" && fType == "int")) finalType = "double";
                 else if ((tType == "float" && fType == "double") || (tType == "double" && fType == "float")) finalType = "double";
                 else {
-                    std::cerr << "Bery:Error: Ternary branch type mismatch ('" << tType << "' vs '" << fType << "')\n";
+                    std::cerr << "Bery:Error [Line "<< tern->line <<"]: Ternary branch type mismatch ('" << tType << "' vs '" << fType << "')\n";
                     errors = true;
                     return "unknown";
                 }
@@ -299,7 +299,7 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             return finalType;
         }
         default:
-            std::cerr<<"Bery:Error: Unknown expression \n";
+            std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";
             errors = true;
             return "unknown";
     }
