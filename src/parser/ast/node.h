@@ -7,6 +7,7 @@ enum class NodeType {
 };
 struct ASTNode {
     NodeType type;
+    int line;
     virtual ~ASTNode() = default;
 };
 

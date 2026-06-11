@@ -35,22 +35,27 @@ int main(int argc, char* argv[]) {
 
    Lexer lexer(source);
    auto tokens = lexer.tokanize();
-   if (lexer.hasErrors()) { std::cerr << "bery: lexer errors\n"; return 4; }
-
 
    Parser parser(tokens);
    auto ast = parser.parse();
-   if (parser.hasErrors()) { std::cerr << "bery: parser errors\n"; return 5; }
 
+   if (lexer.hasErrors() || parser.hasErrors()) { 
+       std::cerr << "Bery: Compilation halted due to syntax errors.\n"; 
+       return 5; 
+   }
 
    SemanticAnalyzer sema(ast.get());
    sema.analyze();
-   if (sema.hasErrors()) { std::cerr << "bery: semantic errors\n"; return 6; }
+   
+   if (sema.hasErrors()) { 
+       std::cerr << "Bery: Compilation halted due to semantic errors.\n"; 
+       return 6; 
+   }
 
    std::string irFile = "bery_out.ll";
-CodeGen codegen(ast.get(), sema.symbolTable);
-codegen.generate(irFile);
+   CodeGen codegen(ast.get(), sema.symbolTable);
+   codegen.generate(irFile);
 
-    std::cout << "Bery: " << BERY_VERSION << " compiled successfully\n";
-return 0;
+   std::cout << "Bery: " << BERY_VERSION << " compiled successfully\n";
+   return 0;
 }
