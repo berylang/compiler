@@ -43,6 +43,11 @@ void Lexer::scanToken() {
     }
     switch(c) {
         case '=' : 
+            if(peek()=='='){
+                advance();
+                tokens.push_back({TokenType::TOKEN_EQUAL_EQUAL,"==",line});
+               return;
+            }
             tokens.push_back({TokenType::TOKEN_EQUAL, "=", line});
             break;
         case ';': 
@@ -134,7 +139,8 @@ void Lexer::scanToken() {
             return;
         case '!':
             if(peek()=='='){
-                //@todo: Add TOKEN_NOTEQ
+                advance();
+                tokens.push_back({TokenType::TOKEN_NOT_EQUAL, "!=", line});
                 return;
             }
             else if(peek()=='>' && peekNext()=='<'){
@@ -155,16 +161,17 @@ void Lexer::scanToken() {
             return;
         case '<':
             if(peek()=='<'){
-                
+                advance();
                 tokens.push_back({TokenType::TOKEN_LSHIFT, "<<", line});
                 return;
             }
             else if(peek()=='='){
-                //@todo: Add TOKEN_LESSEQ
+                advance();
+                tokens.push_back({TokenType::TOKEN_LTEQUAL, "<=", line});
                 return;
             }
             else{
-                //@todo: Add TOKEN_LESSTHAN
+               tokens.push_back({TokenType::TOKEN_LTHAN, "<", line});
                 return;
             }
             break;
@@ -179,11 +186,12 @@ void Lexer::scanToken() {
                 return;
             }
             else if(peek()=='='){
-                //@todo: Add TOKEN_GREATEQ
+                advance();
+                tokens.push_back({TokenType::TOKEN_GTEQUAL, ">=", line});
                 return;
             }
             else{
-                //@todo: Add TOKEN_GREATTHAN
+                tokens.push_back({TokenType::TOKEN_GTHAN, ">", line});
                 return;
             }
             break;

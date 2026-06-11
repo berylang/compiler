@@ -226,6 +226,15 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                 }
                 return "int";
             }
+            if(binary->optr=="=="||binary->optr=="!="||binary->optr==">"||binary->optr==">="||binary->optr=="<"||binary->optr=="<="){
+                if(binary->optr!= "==" && binary->optr!= "!="){
+                    if(lType=="string" || lType=="bool" || rType=="string" || rType=="bool"){
+                        std::cerr<<"Bery:Error: Relational Operator '"<<binary->optr<<"' cannot be used on type '"<<lType<<"' and '"<<rType<<"'\n";
+                        errors=true;
+                        return "unknown";
+                    }
+                }
+            }
         }
         case NodeType::BETWEEN_EXPR:{
             auto* between = static_cast<BetweenExprNode*>(node);

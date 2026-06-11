@@ -38,5 +38,7 @@ class Parser {
     std::unique_ptr<ASTNode> parseShift();
     std::unique_ptr<ASTNode> parseBitwise();
     std::unique_ptr<ASTNode> parseBetween();
+    std::unique_ptr<ASTNode> parseRelational();
+    std::unique_ptr<ASTNode> parseEquality();
 };
 
