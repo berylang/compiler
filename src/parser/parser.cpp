@@ -122,7 +122,7 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
 
 std::unique_ptr<ASTNode> Parser::parseExpression(){
     //@change: When you implement top level expression change the call here
-    return parseBetween();
+    return parseEquality();
 }
 
 std::unique_ptr<ASTNode> Parser::parsePrimary(){
@@ -276,17 +276,12 @@ std::unique_ptr<ASTNode> Parser::parseBitwise(){
 
 std::unique_ptr<ASTNode> Parser::parseBetween(){
     auto value = parseBitwise();
-
     if(check(TokenType::TOKEN_BETWEEN) || check(TokenType::TOKEN_NOT_BETWEEN)){
-
         bool isNegated = check(TokenType::TOKEN_NOT_BETWEEN);
-
-        advance();
-
+       advance();
         auto lower = parseBitwise();
         consume(TokenType::TOKEN_COMMA, "Expected ',' after lower bound");
         auto upper = parseBitwise();
-
         return std::make_unique<BetweenExprNode>(
             std::move(value),
             std::move(lower),
@@ -297,6 +292,28 @@ std::unique_ptr<ASTNode> Parser::parseBetween(){
     return value;
 }
 
+
+std::unique_ptr<ASTNode> Parser::parseRelational(){
+    auto left =parseBetween();
+   
+    while(check(TokenType::TOKEN_GTHAN)|| check(TokenType::TOKEN_LTHAN)||check(TokenType::TOKEN_GTEQUAL)||check(TokenType::TOKEN_LTEQUAL)){
+        std::string op= peek().lexeme;
+        advance();
+        auto right=parseBetween();
+        left=std::make_unique<BinaryExprNode>(op,std::move(left),std::move(right));    
+    }
+    return left;
+}
+std::unique_ptr<ASTNode> Parser::parseEquality(){
+    auto left = parseRelational();
+    while(check(TokenType::TOKEN_EQUAL_EQUAL)|| check(TokenType::TOKEN_NOT_EQUAL)){
+        std::string op=peek().lexeme;
+        advance();
+        auto right=parseRelational();
+        left=std::make_unique<BinaryExprNode>(op,std::move(left),std::move(right));
+    }
+    return left;
+}
 Token Parser::advance() {return tokens[current++];}
 
 Token Parser::peek() {return tokens[current];}
