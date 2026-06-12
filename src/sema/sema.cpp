@@ -300,6 +300,31 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             tern->resolvedType = finalType;
             return finalType;
         }
+        case NodeType::ASSIGNMENT_EXPR:{
+            auto* assign= static_cast<AssignmentExprNode*>(node);
+            if(!symbolTable.exists(assign->name)){
+                std::cerr<<"Bery:Error [Line "<<assign->line<<"] : Undefined variable '"<<assign->name<<"'\n";
+                errors=true;
+                return "unknown";
+            }
+            Symbol& s=symbolTable.get(assign->name);
+            if(s.isConst){
+                std::cerr<<"Bery:Error [Line "<<assign->line<<"] : cannot reassigned constant variable '"<<assign->name<<"'\n";
+                errors=true;
+                return "unknown";
+            }
+            std::string exptype= analyzeExpression(assign->value.get());
+            if(exptype!="unknown" && exptype!=s.type ){
+                if(!(s.type=="float"&& exptype=="int")&&!(s.type=="double"&& exptype=="int")
+                &&!(s.type=="bigint"&& exptype=="int")&&!(s.type=="double"&& exptype=="float")){
+                 std::cerr<<"Bery:Error [Line "<<assign->line<<"] : Type missmatch for assignment to  '"<<assign->name<<"'. Expected '"<<s.type<<"', got '"<<exptype<<"'\n";
+                errors=true;
+                return "unknown";
+                }
+            }
+            s.isInitialized=true;
+            return s.type;
+        }
         default:
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";
             errors = true;
