@@ -1,5 +1,15 @@
 int x=0;
 run{
-    x+=10;
+    int x = 10, y, z;
+
+    y = 30;
+    z = y;
+
+    x += y;
+    z *= x * y;
+
+    int t;
+    t = 20 * x;
+    t %= x;
     
-    }
+}
