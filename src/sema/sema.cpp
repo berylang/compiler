@@ -23,10 +23,12 @@ void SemanticAnalyzer::analyze() {
 }
 
 void SemanticAnalyzer::analyzeNode(ASTNode* node) {
-   if (node->type == NodeType::VAR_DECL)
-       analyzeVarDecl(node);
-   else if (node->type == NodeType::ARRAY_DECL)
-       analyzeArrayDecl(node);
+    if (node->type == NodeType::VAR_DECL)
+        analyzeVarDecl(node);
+    else if (node->type == NodeType::ARRAY_DECL)
+        analyzeArrayDecl(node);
+    else if (node->type == NodeType::ASSIGNMENT_EXPR) 
+       analyzeExpression(node);
 } 
 
 

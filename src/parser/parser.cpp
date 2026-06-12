@@ -43,21 +43,23 @@ std::unique_ptr<ASTNode> Parser::parse() {
         while (!isAtEnd() && !check(TokenType::TOKEN_RBRACE)) {
             try {
                 bool isConst = false;
-                if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
-                            if (isTypeToken(peek().type)) {
-                        if (!isConst && isArrayDecl()) {
-                            auto decl = parseArrayDecl();
-                            runBlock->statements.push_back(std::move(decl));
-                        } else {
-                            auto decls = parseVarDecl(isConst);
-                            for (auto& d : decls)
-                                runBlock->statements.push_back(std::move(d));
-                        }
+                if (check(TokenType::TOKEN_CONST)) { 
+                    advance(); 
+                    isConst = true; 
+                }
+                if (isTypeToken(peek().type)) {
+                    if (!isConst && isArrayDecl()) {
+                        auto decl = parseArrayDecl();
+                        runBlock->statements.push_back(std::move(decl));
                     } else {
-                    while (!isAtEnd() && !check(TokenType::TOKEN_SEMICOLON)
-                                        && !check(TokenType::TOKEN_RBRACE))
-                        advance();
-                    if (check(TokenType::TOKEN_SEMICOLON)) advance();
+                        auto decls = parseVarDecl(isConst);
+                        for (auto& d : decls)
+                            runBlock->statements.push_back(std::move(d));
+                    }
+                }else {
+                    auto expr = parseExpression();
+                    consume(TokenType::TOKEN_SEMICOLON, "Expected ';'");
+                    runBlock->statements.push_back(std::move(expr));
                 }
             } catch(ParseError& e) {
                 synchronize();
@@ -166,7 +168,7 @@ std::unique_ptr<ASTNode> Parser::parseExpression(){
 
 
     }
-
+    return expr;
 }
 
 std::unique_ptr<ASTNode> Parser::parsePrimary(){

@@ -330,6 +330,15 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
        out << "    " << finalReg << " = load " << llvmResType << ", " << llvmResType << "* " << resultAlloc << "\n";
        return finalReg;
     }
-
+    if (node->type == NodeType::ASSIGNMENT_EXPR) {
+        auto* assign = static_cast<AssignmentExprNode*>(node);
+        
+        Symbol& sym = symTable.get(assign->name);
+        std::string targetLT = llvmType(sym.type);
+        std::string valReg = genExpression(assign->value.get(), sym.type, out);
+        out << "    store " << targetLT << " " << valReg << ", " << targetLT << "* " << sym.llvmRegister << "\n";
+        
+        return valReg;
+    }
    return "0";
 }
