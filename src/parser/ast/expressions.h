@@ -82,3 +82,15 @@ struct TernaryExprNode : public ASTNode {
         line = ln;
     }
 };
+
+struct AssignmentExprNode : public ASTNode {
+    std::unique_ptr<ASTNode> value;
+    std::string name;
+   
+
+    AssignmentExprNode(const std::string& n, std::unique_ptr<ASTNode> v ,int ln)
+        :name(n),value(std::move(v)){
+        type = NodeType::ASSIGNMENT_EXPR;
+        line = ln;
+    }
+};
