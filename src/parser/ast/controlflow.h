@@ -21,7 +21,7 @@ struct IfStmtNode : public ASTNode
           elseBranch(std::move(e))
 
     {
-        type = NodeType::if_STMT;
+        type = NodeType::IF_STMT;
         line = ln;
     }
 };

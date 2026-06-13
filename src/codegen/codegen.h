@@ -27,4 +27,7 @@ private:
    void genArrayDecl(ASTNode* node, std::ostream& out);
    
    std::string genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out);
+
+   void genIfStmt(ASTNode* node, std::ostream& out);
+   void genBlock(ASTNode* node, std::ostream& out);
 };
