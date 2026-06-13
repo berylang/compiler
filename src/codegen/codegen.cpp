@@ -72,6 +72,7 @@ void CodeGen::generate(const std::string& outputPath) {
             else if (node->type == NodeType::IF_STMT) genIfStmt(node.get(), body);
             else if (node->type == NodeType::BLOCK) genBlock(node.get(), body);
             else if (node->type == NodeType::WHILE_STMT) genWhileStmt(node.get(), body);
+            else if (node->type == NodeType::SWITCH_STMT) genSwitchStmt(node.get(), body);
         }
         symTable.popScope();
     }
@@ -167,6 +168,7 @@ void CodeGen::genBlock(ASTNode* node, std::ostream& out) {
         else if (stmt->type == NodeType::IF_STMT) genIfStmt(stmt.get(), out);
         else if (stmt->type == NodeType::BLOCK) genBlock(stmt.get(), out);
         else if (stmt->type == NodeType::WHILE_STMT) genWhileStmt(stmt.get(), out);
+        else if (stmt->type == NodeType::SWITCH_STMT) genSwitchStmt(stmt.get(), out);
     }
     symTable.popScope();
 }
@@ -214,4 +216,84 @@ void CodeGen::genWhileStmt(ASTNode* node, std::ostream& out) {
     genBlock(whilestmt->body.get(), out);
     out << "    br label %" << conditionLabel << "\n";
     out <<"\n" << endLabel << ":\n";
+}
+
+void CodeGen::genBreakStmt(ASTNode* node, std::ostream& out) {
+    if (breakTracker.empty()) return;
+    out << "    br label %" << breakTracker.back() << "\n";
+}
+
+void CodeGen::genSwitchStmt(ASTNode* node, std::ostream& out) {
+    auto* sw = static_cast<SwitchStmtNode*>(node);
+
+    std::string condReg = genExpression(sw->condition.get(), "any", out);
+    std::string llvmCondType = "i32";
+    
+    int blockId = ++regCounter;
+    std::string endLbl = "switch_end_" + std::to_string(blockId);
+    
+    breakTracker.push_back(endLbl);
+    std::string nextCmpLbl = "switch_cmp_0_" + std::to_string(blockId);
+    out << "    br label %" << nextCmpLbl << "\n";
+
+    for (size_t i = 0; i < sw->cases.size(); i++) {
+        auto& c = sw->cases[i];
+        
+        std::string bodyLbl = "switch_body_" + std::to_string(i) + "_" + std::to_string(blockId);
+        std::string nextCmp = (i + 1 < sw->cases.size()) ? "switch_cmp_" + std::to_string(i + 1) + "_" + std::to_string(blockId) : (sw->hasDefault ? "switch_default_" + std::to_string(blockId) : endLbl);
+        out << "\n" << nextCmpLbl << ":\n";
+        std::string caseReg = genExpression(c.value.get(), "any", out);
+        std::string isMatch = newReg();
+        out << "    " << isMatch << " = icmp eq " << llvmCondType << " " << condReg << ", " << caseReg << "\n";
+        out << "    br i1 " << isMatch << ", label %" << bodyLbl << ", label %" << nextCmp << "\n";
+        
+        nextCmpLbl = nextCmp;
+
+        out << "\n" << bodyLbl << ":\n";
+        symTable.pushScope();
+        for (auto& stmt : c.statements) {
+            if (stmt->type == NodeType::BREAK_STMT) genBreakStmt(stmt.get(), out);
+            else if (stmt->type == NodeType::ASSIGNMENT_EXPR) genExpression(stmt.get(), "any", out);
+            else if (stmt->type == NodeType::VAR_DECL) genVarDecl(stmt.get(), out);
+            else if (stmt->type == NodeType::ARRAY_DECL) genArrayDecl(stmt.get(), out);
+            else if (stmt->type == NodeType::IF_STMT) genIfStmt(stmt.get(), out);
+            else if (stmt->type == NodeType::BLOCK) genBlock(stmt.get(), out);
+            else if (stmt->type == NodeType::WHILE_STMT) genWhileStmt(stmt.get(), out);
+        }
+        symTable.popScope();
+        
+        bool endsWithBreak = !c.statements.empty() && c.statements.back()->type == NodeType::BREAK_STMT;
+        if (!endsWithBreak) {
+            std::string nextBody = (i + 1 < sw->cases.size()) ? "switch_body_" + std::to_string(i + 1) + "_" + std::to_string(blockId) : (sw->hasDefault ? "switch_default_body_" + std::to_string(blockId) : endLbl);
+            out << "    br label %" << nextBody << "\n";
+        }
+    }
+
+    if (sw->hasDefault) {
+        out << "\nswitch_default_" << blockId << ":\n";
+        out << "    br label %switch_default_body_" << blockId << "\n";
+        out << "\nswitch_default_body_" << blockId << ":\n";
+        symTable.pushScope();
+        for (auto& stmt : sw->defaultBlock) {
+             if (stmt->type == NodeType::BREAK_STMT) genBreakStmt(stmt.get(), out);
+            else if (stmt->type == NodeType::ASSIGNMENT_EXPR) genExpression(stmt.get(), "any", out);
+            else if (stmt->type == NodeType::VAR_DECL) genVarDecl(stmt.get(), out);
+            else if (stmt->type == NodeType::ARRAY_DECL) genArrayDecl(stmt.get(), out);
+            else if (stmt->type == NodeType::IF_STMT) genIfStmt(stmt.get(), out);
+            else if (stmt->type == NodeType::BLOCK) genBlock(stmt.get(), out);
+            else if (stmt->type == NodeType::WHILE_STMT) genWhileStmt(stmt.get(), out);
+        }
+        symTable.popScope();
+        
+        bool endsWithBreak = !sw->defaultBlock.empty() && sw->defaultBlock.back()->type == NodeType::BREAK_STMT;
+        if (!endsWithBreak) {
+             out << "    br label %" << endLbl << "\n";
+        }
+    } else {
+        out << "\n" << nextCmpLbl << ":\n";
+        out << "    br label %" << endLbl << "\n";
+    }
+
+    out << "\n" << endLbl << ":\n";
+    breakTracker.pop_back(); 
 }

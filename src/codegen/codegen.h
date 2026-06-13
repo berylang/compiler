@@ -17,6 +17,7 @@ private:
    int strCounter = 0;
    SymbolTable& symTable;
    std::ostringstream globalStrings;
+   std::vector<std::string> breakTracker;
    std::string extractConstant(ASTNode* node);
 
    std::string newReg();
@@ -31,4 +32,7 @@ private:
    void genIfStmt(ASTNode* node, std::ostream& out);
    void genWhileStmt(ASTNode* node, std::ostream& out);
    void genBlock(ASTNode* node, std::ostream& out);
+
+   void genSwitchStmt(ASTNode* node, std::ostream& out);
+   void genBreakStmt(ASTNode* node, std::ostream& out);
 };

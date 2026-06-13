@@ -10,6 +10,7 @@ public:
    void analyze();
    bool hasErrors();
    SymbolTable symbolTable;
+   int loopOrSwitchDepth = 0;
 
 
 private:
