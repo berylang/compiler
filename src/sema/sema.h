@@ -18,6 +18,8 @@ private:
    bool errors;
 
 
+   void analyzeIfStmt(ASTNode* node);
+   void analyzeBlock(ASTNode* node);
    void analyzeNode(ASTNode* node);
    void analyzeVarDecl(ASTNode* node);
    void analyzeArrayDecl(ASTNode* node);

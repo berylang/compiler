@@ -1,0 +1,11 @@
+run {
+    if(n>2){
+        int x=10;
+    }
+    elseif(n<2){
+        int x=2;
+    }
+    else{
+        int x=5
+    }
+}
