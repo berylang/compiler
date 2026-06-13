@@ -4,6 +4,8 @@
 #include "../parser/ast/literals.h"
 #include "../parser/ast/arraydeclare.h"
 #include "../parser/ast/expressions.h"
+#include "../parser/ast/controlflow.h"
+#include "../parser/ast/blocknode.h"
 #include "../sema/symboltable.h"
 #include <fstream>
 #include <iomanip>
@@ -64,15 +66,16 @@ void CodeGen::generate(const std::string& outputPath) {
     if (program->runBlock) {
         symTable.pushScope();
         for (auto& node : program->runBlock->statements) {
-            if (node->type == NodeType::VAR_DECL)
-                genVarDecl(node.get(), body);
-            else if (node->type == NodeType::ARRAY_DECL)
-                genArrayDecl(node.get(), body);
-            else if (node->type == NodeType::ASSIGNMENT_EXPR) 
-                genExpression(node.get(), "any", body); // Make sure this router is here!
+            if (node->type == NodeType::VAR_DECL) genVarDecl(node.get(), body);
+            else if (node->type == NodeType::ARRAY_DECL) genArrayDecl(node.get(), body);
+            else if (node->type == NodeType::ASSIGNMENT_EXPR) genExpression(node.get(), "any", body);
+            else if (node->type == NodeType::IF_STMT) genIfStmt(node.get(), body);
+            else if (node->type == NodeType::BLOCK) genBlock(node.get(), body);
         }
         symTable.popScope();
     }
+    body << "    br label %main_end\n";
+    body << "\nmain_end:\n";
     body << "    ret i32 0\n";
     body << "}\n";
 
@@ -150,4 +153,44 @@ std::string CodeGen::extractConstant(ASTNode* node) {
 }
 std::string CodeGen::newReg() {
    return "%" + std::to_string(++regCounter);
+}
+
+
+void CodeGen::genBlock(ASTNode* node, std::ostream& out) {
+    auto* block = static_cast<BlockNode*>(node);
+    symTable.pushScope(); 
+    for (auto& stmt : block->statements) {
+        if (stmt->type == NodeType::VAR_DECL) genVarDecl(stmt.get(), out);
+        else if (stmt->type == NodeType::ARRAY_DECL) genArrayDecl(stmt.get(), out);
+        else if (stmt->type == NodeType::ASSIGNMENT_EXPR) genExpression(stmt.get(), "any", out);
+        else if (stmt->type == NodeType::IF_STMT) genIfStmt(stmt.get(), out);
+        else if (stmt->type == NodeType::BLOCK) genBlock(stmt.get(), out);
+    }
+    symTable.popScope();
+}
+
+void CodeGen::genIfStmt(ASTNode* node, std::ostream& out) {
+    auto* ifStmt = static_cast<IfStmtNode*>(node);
+    std::string condReg = genExpression(ifStmt->conditions.get(), "bool", out);
+
+    int blockId = ++regCounter;
+    std::string thenLbl = "if_then_" + std::to_string(blockId);
+    std::string elseLbl = "if_else_" + std::to_string(blockId);
+    std::string endLbl = "if_end_" + std::to_string(blockId);
+
+    if (ifStmt->elseBranch) out << "    br i1 " << condReg << ", label %" << thenLbl << ", label %" << elseLbl << "\n";
+    else out << "    br i1 " << condReg << ", label %" << thenLbl << ", label %" << endLbl << "\n";
+
+    out << "\n" << thenLbl << ":\n";
+    genBlock(ifStmt->ifBranch.get(), out);
+    out << "    br label %" << endLbl << "\n"; 
+
+    if (ifStmt->elseBranch) {
+        out << "\n" << elseLbl << ":\n";
+        if (ifStmt->elseBranch->type == NodeType::IF_STMT) genIfStmt(ifStmt->elseBranch.get(), out); 
+        else genBlock(ifStmt->elseBranch.get(), out); 
+        out << "    br label %" << endLbl << "\n"; 
+    }
+
+    out << "\n" << endLbl << ":\n";
 }

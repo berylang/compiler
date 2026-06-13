@@ -398,7 +398,7 @@ std::unique_ptr<BlockNode> Parser::parseBlock() {
     int line = previous().line;
 
     auto block = std::make_unique<BlockNode>(line);
-    while(!isAtEnd && !check(TokenType::TOKEN_RBRACE)){
+    while(!isAtEnd() && !check(TokenType::TOKEN_RBRACE)){
 
         try
         {

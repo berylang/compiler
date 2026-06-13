@@ -360,7 +360,7 @@ void SemanticAnalyzer::analyzeIfStmt(ASTNode* node) {
     analyzeBlock(ifStmt->ifBranch.get());
 
     if(ifStmt->elseBranch){
-        if(ifStmt->elseBranch->type == NodeType::if_STMT){
+        if(ifStmt->elseBranch->type == NodeType::IF_STMT){
             analyzeIfStmt(ifStmt->elseBranch.get());
         }
         else{
