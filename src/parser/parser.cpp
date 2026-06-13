@@ -111,7 +111,48 @@ std::unique_ptr<ASTNode> Parser::parseLiteral() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseExpression(){
-    return parseTernary();
+    auto expr= parseTernary();
+    auto isassignmentOperator= [](TokenType t){
+        return t==TokenType::TOKEN_EQUAL || t== TokenType::TOKEN_ADD_ASSIGN || t== TokenType::TOKEN_SUB_ASSIGN 
+        || t== TokenType::TOKEN_MUL_ASSIGN || t== TokenType::TOKEN_DIV_ASSIGN  || t== TokenType::TOKEN_DSTAR_ASSIGN 
+        || t== TokenType::TOKEN_MODULE_ASSIGN || t== TokenType::TOKEN_AND_ASSIGN || t== TokenType::TOKEN_OR_ASSIGN 
+        || t== TokenType::TOKEN_XOR_ASSIGN || t== TokenType::TOKEN_LSHIFT_ASSIGN || t== TokenType::TOKEN_RSHIFT_ASSIGN ;
+    };
+    if(isassignmentOperator(peek().type)) {
+        Token optoken=advance();
+        auto value= parseExpression();
+        if(expr->type == NodeType::IDENT){
+            std::string name=static_cast<IdentNode*>(expr.get())->name;
+            if(optoken.type!=TokenType::TOKEN_EQUAL){
+                std::string binaryop ;
+                switch (optoken.type)
+                {
+                case TokenType::TOKEN_ADD_ASSIGN : binaryop="+"; break;
+                case TokenType::TOKEN_SUB_ASSIGN : binaryop="-"; break;
+                case TokenType::TOKEN_MUL_ASSIGN : binaryop="*"; break;
+                case TokenType::TOKEN_DIV_ASSIGN : binaryop="/"; break;
+                case TokenType::TOKEN_DSTAR_ASSIGN : binaryop="**"; break;
+                case TokenType::TOKEN_MODULE_ASSIGN : binaryop="%"; break;
+                case TokenType::TOKEN_AND_ASSIGN : binaryop="&"; break;
+                case TokenType::TOKEN_OR_ASSIGN : binaryop="|"; break;
+                case TokenType::TOKEN_XOR_ASSIGN : binaryop="^"; break;
+                case TokenType::TOKEN_LSHIFT_ASSIGN : binaryop="<<"; break;
+                case TokenType::TOKEN_RSHIFT_ASSIGN : binaryop=">>"; break;
+                default: break;
+                }
+                auto target= std::make_unique<IdentNode>(name,"unknown",optoken.line);
+                value = std::make_unique<BinaryExprNode>(binaryop,std::move(target),std::move(value),optoken.line);
+            }
+            return std::make_unique<AssignmentExprNode>(name,std::move(value),optoken.line);
+
+        }
+        std::cerr<<"Bery:Error [Line "<< optoken.line<<"]: Invalid Assignment Target \n";
+        errors= true;
+        throw ParseError();
+
+
+    }
+    return expr;
 }
 
 std::unique_ptr<ASTNode> Parser::parsePrimary(){

@@ -77,20 +77,41 @@ void Lexer::scanToken() {
             scanStringLit();
             break;
         case '*':
-            if(peek() == '*'){
+            if(peek()=='='){
                 advance();
-                tokens.push_back({TokenType::TOKEN_POWER, "**", line});
+                tokens.push_back({TokenType::TOKEN_MUL_ASSIGN, "*=", line});
+            }
+            else if(peek() == '*'){
+                if(peekNext()== '='){
+                    advance();
+                    advance();
+                    tokens.push_back({TokenType::TOKEN_DSTAR_ASSIGN, "**=", line});
+                    return; 
+                }else{
+                    advance();
+                    tokens.push_back({TokenType::TOKEN_POWER, "**", line});
                 return;
+                }
             }
             else{
                 tokens.push_back({TokenType::TOKEN_STAR, "*", line});
             }
             break;
         case '/':
+         if(peek()=='='){
+                advance();
+                tokens.push_back({TokenType::TOKEN_DIV_ASSIGN, "/=", line});
+        }else{
             tokens.push_back({TokenType::TOKEN_FSLASH, "/", line});
+            }
             break;
         case '%':
+            if(peek()=='='){
+                advance();
+                tokens.push_back({TokenType::TOKEN_MODULE_ASSIGN,"%=",line});
+            }else{
             tokens.push_back({TokenType::TOKEN_PERCENT, "%", line});
+            }
             break;
         
         case '-':
@@ -114,7 +135,8 @@ void Lexer::scanToken() {
                 }
             }
             else if(peek()=='='){
-                //@todo: Add TOKEN_MINUSEQ 
+                advance();
+                tokens.push_back({TokenType::TOKEN_SUB_ASSIGN,"-=",line});
                 return;
             }
             else{
@@ -123,13 +145,14 @@ void Lexer::scanToken() {
             }
             break;
         case '+':
-            if(peek()=='+'){
+           if(peek()=='+'){
                 advance();
                 tokens.push_back({TokenType::TOKEN_INC, "++", line});
                 return;
             }
             else if(peek()=='='){
-                //@todo: Add TOKEN_PLUSEQ
+                advance();
+                tokens.push_back({TokenType::TOKEN_ADD_ASSIGN,"+=",line});
                 return;
             }
             else{
@@ -165,9 +188,16 @@ void Lexer::scanToken() {
             return;
         case '<':
             if(peek()=='<'){
+                if(peekNext()=='='){
+                    advance();
+                    advance();
+                tokens.push_back({TokenType::TOKEN_LSHIFT_ASSIGN, "<<=", line});
+                return;
+                }else{
                 advance();
                 tokens.push_back({TokenType::TOKEN_LSHIFT, "<<", line});
                 return;
+                }
             }
             else if(peek()=='='){
                 advance();
@@ -181,8 +211,15 @@ void Lexer::scanToken() {
             break;
         case '>':
             if(peek()=='>'){
+                if(peekNext()=='='){
+                    advance();
+                    advance();
+                    tokens.push_back({TokenType::TOKEN_RSHIFT_ASSIGN, ">>=", line});
+                    return;
+                }else{
                 advance();
                 tokens.push_back({TokenType::TOKEN_RSHIFT, ">>", line});
+                }
                 return;
             }
             else if(peek()=='<'){
@@ -201,23 +238,41 @@ void Lexer::scanToken() {
             }
             break;
         case '^':
+            if(peek()=='='){
+                advance();
+                tokens.push_back({TokenType::TOKEN_XOR_ASSIGN, "^=", line});
+                return;
+            }else{
             tokens.push_back({TokenType::TOKEN_CARET, "^", line});
+            }
             break;
         case '&':
-            if(peek()=='&'){
+            if(peek()=='='){
+                advance();
+                tokens.push_back({TokenType::TOKEN_AND_ASSIGN, "&=", line});
+                return;
+            }
+            else if(peek()=='&'){
                 advance();
                 tokens.push_back({TokenType::TOKEN_AND, "&&", line});
                 return;
-            }
+            }else{
             tokens.push_back({TokenType::TOKEN_AMPERSAND, "&", line});
+            }
             break;
         case '|':
-            if(peek()=='|'){
+            if(peek()=='='){
+                advance();
+                tokens.push_back({TokenType::TOKEN_OR_ASSIGN, "|=", line});
+                return;
+            }
+            else if(peek()=='|'){
                 advance();
                 tokens.push_back({TokenType::TOKEN_OR, "||", line});
                 return;
-            }
+            }else{
             tokens.push_back({TokenType::TOKEN_PIPE, "|", line});
+            }
             break;
         case ':':
             tokens.push_back({TokenType::TOKEN_COLON, ":", line});
@@ -401,7 +456,7 @@ TokenType Lexer::checkKeyword(const std::string& lexeme) {
     return TokenType::TOKEN_IDENT;
 }
 bool Lexer::isAlphaNumeric(char c) {return isAlpha(c) || isDigit(c);}
-bool Lexer::isAlpha(char c) {return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');}
+bool Lexer::isAlpha(char c) {return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';}
 bool Lexer::isDigit(char c) {return c >= '0' && c <= '9';}
 char Lexer::advance() {return source[current++];}
 char Lexer::peek() {return source[current];}

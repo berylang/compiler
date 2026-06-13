@@ -5,6 +5,7 @@ enum class NodeType {
     STRING_LIT,NULL_LIT,
     UNARY_EXPR, GROUPED_EXPR, ARRAY_DECL, BINARY_EXPR, BETWEEN_EXPR, TERNARY_EXPR,
     BLOCK, if_STMT,
+    ASSIGNMENT_EXPR
 };
 struct ASTNode {
     NodeType type;

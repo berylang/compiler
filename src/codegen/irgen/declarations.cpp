@@ -7,7 +7,7 @@ void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
    auto* decl = static_cast<VarDeclNode*>(node);
    std::string lt = llvmType(decl->varType);
    std::string memReg = "%" + decl->name + "_" + std::to_string(++regCounter);
-   symTable.get(decl->name).llvmRegister = memReg;
+   symTable.add(decl->name, {decl->varType, decl->isConst, decl->value != nullptr, decl->line, memReg});
    out << "    " << memReg << " = alloca " << lt << "\n";
    if (!decl->value) return;
    std::string valReg = genExpression(decl->value.get(), decl->varType, out);
@@ -21,7 +21,7 @@ void CodeGen::genArrayDecl(ASTNode* node, std::ostream& out) {
    std::string arrType = "[" + std::to_string(resolvedSize) + " x " + lt + "]";
    
    std::string memReg = "%" + decl->name + "_" + std::to_string(++regCounter);
-   symTable.get(decl->name).llvmRegister = memReg;
+   symTable.add(decl->name, {decl->elementType + "[]", false, !decl->initializers.empty(), decl->line, memReg});
 
    out << "    " << memReg << " = alloca " << arrType << "\n";
    if (decl->initializers.empty()) return;

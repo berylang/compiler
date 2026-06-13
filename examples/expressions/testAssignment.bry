@@ -1,0 +1,37 @@
+--- ==========================================
+--- BERY COMPILER STRESS TEST
+--- ==========================================
+
+--- 1. Global Scope;
+int global_val = 100;
+double global_pi = 3.14;
+
+run {
+    --- 2. Local Declarations & Multiple Assignment
+    int x = 10, y = 5, z;
+    z = 20;
+
+    --- 3. Arithmetic Compound Operators
+    x += 5;       --- x is now 15
+    x -= y;       --- x is now 10
+    x *= 2;       --- x is now 20
+    x /= y;       --- x is now 4
+    z %= 3;       --- z is now 2
+
+    --- 4. Power Operator (Testing LLVM external linkage)
+    double p = 3.0;
+    p **= 2.0;    --- p is now 9.0
+
+    --- 5. Bitwise Compound Operators
+    int bits = 1;
+    bits <<= 3;   --- bits is 8  (1000 in binary)
+    bits >>= 1;   --- bits is 4  (0100)
+    bits |= 2;    --- bits is 6  (0110)
+    bits &= 14;   --- bits is 6  (0110)
+    bits ^= 10;   --- bits is 12 (1100)
+
+
+    --- 7. Final Scope Verification
+    --- The outer 'x' should still be 4 here, completely unaffected by the 999 above!
+    x += 1;       --- x is now 5
+}

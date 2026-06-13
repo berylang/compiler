@@ -14,32 +14,18 @@ CodeGen::CodeGen(ASTNode* root, SymbolTable& symTable)
 
 void CodeGen::generate(const std::string& outputPath) {
     auto* program = static_cast<ProgramNode*>(root);
-    std::ostringstream body;
-    body << "define i32 @main() {\n";
-    body << "entry:\n";
-
-    if (program->runBlock) {
-        symTable.pushScope();
-        for (auto& node : program->runBlock->statements) {
-            if (node->type == NodeType::VAR_DECL)
-                genVarDecl(node.get(), body);
-            else if (node->type == NodeType::ARRAY_DECL)
-                genArrayDecl(node.get(), body);
-        }
-        symTable.popScope();
-    }
-    body << "    ret i32 0\n";
-    body << "}\n";
-    std::ofstream out(outputPath);
-    out << "declare double @llvm.pow.f64(double, double)\n";
+    
+    std::ostringstream globalsOut;
+    globalsOut << "declare double @llvm.pow.f64(double, double)\n";
 
     for (auto& node : program->globals) {
         if (node->type == NodeType::VAR_DECL) {
             auto* decl = static_cast<VarDeclNode*>(node.get());
             std::string lt = llvmType(decl->varType);
             std::string initVal = extractConstant(decl->value.get());
+            
             symTable.get(decl->name).llvmRegister = "@" + decl->name;
-            out << "@" << decl->name << " = global " << lt << " " << initVal << "\n";
+            globalsOut << "@" << decl->name << " = global " << lt << " " << initVal << "\n";
         } 
         else if (node->type == NodeType::ARRAY_DECL) {
             auto* decl = static_cast<ArrayDeclNode*>(node.get());
@@ -67,10 +53,31 @@ void CodeGen::generate(const std::string& outputPath) {
                 }
                 initVal += "]";
             }
-            out << "@" << decl->name << " = global " << arrType << " " << initVal << "\n";
+            globalsOut << "@" << decl->name << " = global " << arrType << " " << initVal << "\n";
         }
     }
 
+    std::ostringstream body;
+    body << "\ndefine i32 @main() {\n";
+    body << "entry:\n";
+
+    if (program->runBlock) {
+        symTable.pushScope();
+        for (auto& node : program->runBlock->statements) {
+            if (node->type == NodeType::VAR_DECL)
+                genVarDecl(node.get(), body);
+            else if (node->type == NodeType::ARRAY_DECL)
+                genArrayDecl(node.get(), body);
+            else if (node->type == NodeType::ASSIGNMENT_EXPR) 
+                genExpression(node.get(), "any", body); // Make sure this router is here!
+        }
+        symTable.popScope();
+    }
+    body << "    ret i32 0\n";
+    body << "}\n";
+
+    std::ofstream out(outputPath);
+    out << globalsOut.str();
     out << globalStrings.str() << "\n";
     out << body.str();
 }
