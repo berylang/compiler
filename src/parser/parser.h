@@ -1,5 +1,6 @@
 #pragma once
 #include "ast/node.h"
+#include "ast/blocknode.h"
 #include "../lexer/token.h"
 #include <vector>
 #include <memory>
@@ -47,5 +48,8 @@ class Parser {
     std::unique_ptr<ASTNode> parseLogicalAnd();
     std::unique_ptr<ASTNode> parseLogicalOr();
     std::unique_ptr<ASTNode> parseTernary();
+    std::unique_ptr<ASTNode> parseStatement();
+    std::unique_ptr<BlockNode> parseBlock();
+    std::unique_ptr<ASTNode> parseIfStmt();
 };
 

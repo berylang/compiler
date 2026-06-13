@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <iostream>
 #include "ast/expressions.h"
+#include "ast/controlflow.h"
+#include "ast/blocknode.h"
 
 Parser::Parser(const std::vector<Token>& tokens)
     : tokens(tokens), current(0), errors(false) {}
@@ -42,23 +44,7 @@ std::unique_ptr<ASTNode> Parser::parse() {
         auto runBlock = std::make_unique<RunBlockNode>(runline);
         while (!isAtEnd() && !check(TokenType::TOKEN_RBRACE)) {
             try {
-                bool isConst = false;
-                if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
-                            if (isTypeToken(peek().type)) {
-                        if (!isConst && isArrayDecl()) {
-                            auto decl = parseArrayDecl();
-                            runBlock->statements.push_back(std::move(decl));
-                        } else {
-                            auto decls = parseVarDecl(isConst);
-                            for (auto& d : decls)
-                                runBlock->statements.push_back(std::move(d));
-                        }
-                    } else {
-                    while (!isAtEnd() && !check(TokenType::TOKEN_SEMICOLON)
-                                        && !check(TokenType::TOKEN_RBRACE))
-                        advance();
-                    if (check(TokenType::TOKEN_SEMICOLON)) advance();
-                }
+                runBlock->statements.push_back(parseStatement());
             } catch(ParseError& e) {
                 synchronize();
             }
@@ -332,6 +318,89 @@ std::unique_ptr<ASTNode> Parser::parseTernary() {
         return std::make_unique<TernaryExprNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr), opLine);
     }
     return expr;
+}
+
+std::unique_ptr<ASTNode> Parser::parseStatement() {
+    if (check(TokenType::TOKEN_IF)) {
+        return parseIfStmt();
+    }
+    if (check(TokenType::TOKEN_ELSE)){
+        advance();
+        return parseBlock();
+    }
+    bool isConst = false;
+    if(check(TokenType::TOKEN_CONST)){
+        advance();
+        isConst = true;
+    }
+    if(isTypeToken(peek().type)){
+        if(!isConst && isArrayDecl())return parseArrayDecl();
+        std::vector<std::unique_ptr<ASTNode>>decls = parseVarDecl(isConst);
+        if(decls.size() == 1){
+            return std::move(decls[0]);    
+        };
+        auto multiDeclBlock = std::make_unique<BlockNode>(previous().line);
+        
+        for(auto& d:decls){
+            multiDeclBlock->statements.push_back(std::move(d));
+        }
+        return multiDeclBlock;
+    }
+    auto expr = parseExpression();
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after expression");
+    return expr;
+
+}
+
+std::unique_ptr<BlockNode> Parser::parseBlock() {
+
+    int line = previous().line;
+
+    auto block = std::make_unique<BlockNode>(line);
+    while(!isAtEnd && !check(TokenType::TOKEN_RBRACE)){
+
+        try
+        {
+            block->statements.push_back(parseStatement());
+        }
+        catch(ParseError& e)
+        {
+            synchronize();
+        }
+        
+    }
+    consume(TokenType::TOKEN_RBRACE, "Expected '}' after block");
+    return block;
+    
+}
+
+std::unique_ptr<ASTNode> Parser::parseIfStmt() {
+    advance();
+    int line = previous().line;
+
+    consume(TokenType::TOKEN_LPARAN, "Expected '(' after if");
+    auto condition = parseExpression();
+    consume(TokenType::TOKEN_RPARAN, "Expected ')' after condition");
+    consume(TokenType::TOKEN_LBRACE, "Expected '{' before if Body");
+    auto ifBranch = parseBlock();    
+    std::unique_ptr<ASTNode> elseBranch = nullptr;
+    if(check(TokenType::TOKEN_ELSE)){
+        advance();
+        if(check(TokenType::TOKEN_IF)){
+            elseBranch = parseIfStmt();
+        }else{
+            consume(TokenType::TOKEN_LBRACE, "Expected '{' before if else Body");
+            elseBranch = parseBlock();
+        }
+    }
+
+    return std::make_unique<IfStmtNode>(
+        std::move(condition),
+        std::move(ifBranch),
+        std::move(elseBranch),
+        line
+); 
+
 }
 
 Token Parser::advance() {if (!isAtEnd()) current++;

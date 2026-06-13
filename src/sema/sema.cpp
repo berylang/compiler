@@ -5,6 +5,8 @@
 #include "../parser/ast/arraydeclare.h"
 #include <iostream>
 #include "../parser/ast/expressions.h"
+#include "../parser/ast/blocknode.h"
+#include "../parser/ast/controlflow.h"
 
 SemanticAnalyzer::SemanticAnalyzer(ASTNode* root)
    : root(root), errors(false) {}
@@ -304,6 +306,39 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";
             errors = true;
             return "unknown";
+    }
+
+}
+ 
+void SemanticAnalyzer::analyzeBlock(ASTNode* node) { 
+    auto* block = static_cast<BlockNode*>(node);
+    symbolTable.pushScope();
+    
+    for(auto& statement:block->statements){
+        analyzeNode(statement.get());
+    }
+
+    symbolTable.popScope();
+}
+
+void SemanticAnalyzer::analyzeIfStmt(ASTNode* node) { 
+    auto* ifStmt = static_cast<IfStmtNode*>(node);
+    std::string conditionType = analyzeExpression(ifStmt->conditions.get());
+
+    if(conditionType != "bool" && conditionType != "unknown"){
+        std::cerr << "Bery:Error [Line " << ifStmt->line << "]: if condition must evaluate to bool \n";
+        errors = true;
+    }
+
+    analyzeBlock(ifStmt->ifBranch.get());
+
+    if(ifStmt->elseBranch){
+        if(ifStmt->elseBranch->type == NodeType::if_STMT){
+            analyzeIfStmt(ifStmt->elseBranch.get());
+        }
+        else{
+            analyzeBlock(ifStmt->elseBranch.get());
+        }
     }
 
 }
