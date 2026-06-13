@@ -26,6 +26,36 @@ struct IfStmtNode : public ASTNode
     }
 };
 
+struct CaseBlock
+{
+    std::unique_ptr<ASTNode> value;
+    std::vector<std::unique_ptr<ASTNode>> statements;
+};
+
+struct SwitchStmtNode : public ASTNode
+{
+    std::unique_ptr<ASTNode> condition;
+    std::vector<CaseBlock> cases;
+
+    std::vector<std::unique_ptr<ASTNode>> defaultBlock;
+    bool hasDefault;
+
+    SwitchStmtNode(int ln)
+    {
+        type = NodeType::SWITCH_STMT;
+        line = ln;
+        hasDefault = false;
+    }
+};
+
+struct BreakStmtNode : public ASTNode
+{
+    BreakStmtNode(int ln)
+    {
+        type = NodeType::BREAK_STMT;
+        line = ln;
+    }
+};
 struct WhileStmtNode : public ASTNode{
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<BlockNode> body;

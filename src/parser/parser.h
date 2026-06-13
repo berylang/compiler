@@ -51,6 +51,10 @@ class Parser {
     std::unique_ptr<ASTNode> parseStatement();
     std::unique_ptr<BlockNode> parseBlock();
     std::unique_ptr<ASTNode> parseIfStmt();
+    std::unique_ptr<ASTNode> parseSwitchStmt();
+    std::unique_ptr<ASTNode> parseBreakStmt();
+
+
     std::unique_ptr<ASTNode> parseWhileStmt();
 };
 

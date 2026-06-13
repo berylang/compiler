@@ -18,6 +18,10 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"null", TokenType::TOKEN_NULL},
     {"if", TokenType::TOKEN_IF},
     {"else", TokenType::TOKEN_ELSE},
+    {"switch",TokenType::TOKEN_SWITCH},
+    {"case",TokenType::TOKEN_CASE},
+    {"break",TokenType::TOKEN_BREAK},
+    {"default",TokenType::TOKEN_DEFAULT},
     {"while", TokenType::TOKEN_WHILE}
 };
 

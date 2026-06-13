@@ -1,0 +1,15 @@
+int x = 20;
+
+run {
+    switch(x) {
+        case 1:
+            int a = 109;
+            
+        case 2:
+            int b = 20;
+            break;
+        default:
+            int c = 67;
+
+    }
+}

@@ -390,6 +390,48 @@ void SemanticAnalyzer::analyzeIfStmt(ASTNode* node) {
 
 }
 
+void SemanticAnalyzer::analyzeSwitchStmt(ASTNode* node) {
+    auto* sw = static_cast<SwitchStmtNode*>(node);
+    std::string condType = analyzeExpression(sw->condition.get());
+
+    if (condType != "unknown" && condType != "int" && condType != "bigint" && condType != "char") {
+        std::cerr << "Bery:Error [Line " << sw->line << "]: Invalid switch condition type '" << condType << "'. Expected int, bigint, or char.\n";
+        errors = true;
+    }
+
+    loopOrSwitchDepth++;
+
+    for (auto& c : sw->cases) {
+        if (c.value) {
+            std::string caseType = analyzeExpression(c.value.get());
+            if (caseType != "unknown" && condType != "unknown" && caseType != condType) {
+                std::cerr << "Bery:Error [Line " << sw->line << "]: Case type '" << caseType << "' does not match switch condition type '" << condType << "'\n";
+                errors = true;
+            }
+        }
+        
+        symbolTable.pushScope();
+        for (auto& s : c.statements) analyzeNode(s.get());
+        symbolTable.popScope();
+    }
+
+    if (sw->hasDefault) {
+        symbolTable.pushScope();
+        for (auto& s : sw->defaultBlock) analyzeNode(s.get());
+        symbolTable.popScope();
+    }
+
+    loopOrSwitchDepth--;
+}
+
+void SemanticAnalyzer::analyzeBreakStmt(ASTNode* node) {
+    if (loopOrSwitchDepth <= 0) {
+        std::cerr << "Bery:Error [Line " << node->line << "]: 'break' used outside of a loop or switch.\n";
+        errors = true;
+    }
+}
+
+
 void SemanticAnalyzer::analyzeWhileStmt(ASTNode* node){
     auto* whileStmt = static_cast<WhileStmtNode*>(node);
     std::string conditionType = analyzeExpression(whileStmt->condition.get());

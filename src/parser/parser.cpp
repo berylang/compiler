@@ -389,6 +389,13 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         advance();
         isConst = true;
     }
+    if (check(TokenType::TOKEN_SWITCH)) {
+        return parseSwitchStmt();
+    }
+    if (check(TokenType::TOKEN_BREAK)) {
+        return parseBreakStmt();
+    }
+
     if(isTypeToken(peek().type)){
         if(!isConst && isArrayDecl())return parseArrayDecl();
         std::vector<std::unique_ptr<ASTNode>>decls = parseVarDecl(isConst);
@@ -459,6 +466,59 @@ std::unique_ptr<ASTNode> Parser::parseIfStmt() {
 
 }
 
+std::unique_ptr<ASTNode> Parser::parseSwitchStmt() {
+    advance();
+    int line = previous().line;
+
+    consume(TokenType::TOKEN_LPARAN, "Expected '(' after switch");
+    auto expr = parseExpression();
+    consume(TokenType::TOKEN_RPARAN, "Expected ')' after condition");
+
+    consume(TokenType::TOKEN_LBRACE, "Expected '{' before switch-body");
+
+    auto sw = std::make_unique<SwitchStmtNode>(line);
+    sw->condition = std::move(expr);
+
+    while (!isAtEnd() && !check(TokenType::TOKEN_RBRACE)) {
+
+        if (check(TokenType::TOKEN_CASE)) {
+            advance();
+            CaseBlock cb;
+            cb.value = parseExpression();
+
+            consume(TokenType::TOKEN_COLON, "expected ':' after case");
+
+            while (!isAtEnd() && !check(TokenType::TOKEN_CASE) &&
+                   !check(TokenType::TOKEN_DEFAULT) && !check(TokenType::TOKEN_RBRACE)) {
+                cb.statements.push_back(parseStatement());
+            }
+            sw->cases.push_back(std::move(cb));
+        }
+        else if (check(TokenType::TOKEN_DEFAULT)) {
+            advance();
+            consume(TokenType::TOKEN_COLON, "Expected ':'");
+            sw->hasDefault = true;
+
+            while (!isAtEnd() && !check(TokenType::TOKEN_CASE) && !check(TokenType::TOKEN_RBRACE)) {
+                sw->defaultBlock.push_back(parseStatement());
+            }
+        }
+        else {
+            std::cerr << "Bery:Error [Line " << peek().line << "]: Expected 'case' or 'default'\n";
+            errors = true;
+            advance();
+        }
+    }
+    consume(TokenType::TOKEN_RBRACE, "Expected '}' after switch body");
+    return sw;
+}
+
+std::unique_ptr<ASTNode> Parser::parseBreakStmt() {
+    int line = previous().line;
+    advance();
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after break");
+    return std::make_unique<BreakStmtNode>(line);
+}
 std::unique_ptr<ASTNode> Parser::parseWhileStmt(){
     advance();
     int line = previous().line;
