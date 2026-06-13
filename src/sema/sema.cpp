@@ -333,6 +333,22 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             s.isInitialized=true;
             return s.type;
         }
+        case NodeType::CAST_EXPR: {
+            auto* castNode = static_cast<CastExprNode*>(node);
+            std::string srcType = analyzeExpression(castNode->expr.get());
+            castNode->srcType = srcType; 
+
+            auto isPrimitive = [](const std::string& t) {
+                return t == "int" || t == "bigint" || t == "float" || t == "double" || t == "char" || t == "bool";
+            };
+
+            if (!isPrimitive(srcType) || !isPrimitive(castNode->targetType)) {
+                std::cerr << "Bery:Error [Line " << castNode->line << "]: Invalid cast from '" << srcType << "' to '"  << castNode->targetType   << "'.\n";
+                errors = true;
+                return "unknown";
+            }
+            return castNode->targetType;
+        }
         default:
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";
             errors = true;

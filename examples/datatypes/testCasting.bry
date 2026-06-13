@@ -1,0 +1,7 @@
+
+run {
+    char a = 'A';
+    int b = (int) a;
+    bigint c = (bigint) a;
+    float d = (float) b;
+}

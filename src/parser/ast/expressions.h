@@ -94,3 +94,14 @@ struct AssignmentExprNode : public ASTNode {
         line = ln;
     }
 };
+
+struct CastExprNode : public ASTNode {
+    std::string targetType;
+    std::unique_ptr<ASTNode> expr;
+    std::string srcType;
+
+    CastExprNode(std::string t, std::unique_ptr<ASTNode> e, int ln) : targetType(t), expr(std::move(e)) {
+        type = NodeType::CAST_EXPR;
+        line = ln;
+    }
+};

@@ -340,5 +340,51 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         
         return valReg;
     }
+    if (node->type == NodeType::CAST_EXPR) {
+        auto* castNode = static_cast<CastExprNode*>(node);
+        std::string srcReg = genExpression(castNode->expr.get(), castNode->srcType, out);
+        
+        std::string sType = castNode->srcType;
+        std::string tType = castNode->targetType;
+
+        if (sType == tType) return srcReg;
+
+        std::string sLLVM = llvmType(sType);
+        std::string tLLVM = llvmType(tType);
+        std::string resReg = newReg();
+
+        bool srcIsFloat = (sType == "float" || sType == "double");
+        bool tgtIsFloat = (tType == "float" || tType == "double");
+
+        if (srcIsFloat && !tgtIsFloat) {
+            out << "    " << resReg << " = fptosi " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+        } 
+        else if (!srcIsFloat && tgtIsFloat) {
+            out << "    " << resReg << " = sitofp " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+        } 
+        else if (srcIsFloat && tgtIsFloat) {
+            if (sType == "float" && tType == "double")
+                out << "    " << resReg << " = fpext float " << srcReg << " to double\n";
+            else
+                out << "    " << resReg << " = fptrunc double " << srcReg << " to float\n";
+        }
+        else {
+            int sWidth = (sType == "bigint") ? 64 : (sType == "int" ? 32 : (sType == "char" ? 8 : 1));
+            int tWidth = (tType == "bigint") ? 64 : (tType == "int" ? 32 : (tType == "char" ? 8 : 1));
+
+            if (sWidth > tWidth) {
+                out << "    " << resReg << " = trunc " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+            } else if (sWidth < tWidth) {
+                if (sType == "bool") {
+                    out << "    " << resReg << " = zext " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+                } else {
+                    out << "    " << resReg << " = sext " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+                }
+            } else {
+                return srcReg; 
+            }
+        }
+        return resReg;
+    }
    return "0";
 }

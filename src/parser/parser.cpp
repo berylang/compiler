@@ -183,6 +183,18 @@ std::unique_ptr<ASTNode> Parser::parsePostfix(){
 }
 
 std::unique_ptr<ASTNode> Parser::parseUnary(){
+
+    if (check(TokenType::TOKEN_LPARAN) &&
+        current + 1 < (int)tokens.size() && isTypeToken(tokens[current + 1].type) && 
+        current + 2 < (int)tokens.size() && tokens[current + 2].type == TokenType::TOKEN_RPARAN) {
+            advance();
+            Token typeToken = advance();
+            advance();
+
+            auto expr = parseUnary();
+            return std::make_unique<CastExprNode>(typeToken.lexeme, std::move(expr), typeToken.line);
+        } 
+
     if(check(TokenType::TOKEN_BANG) ||
         check(TokenType::TOKEN_TILDE)||
         check(TokenType::TOKEN_INC)||
