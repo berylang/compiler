@@ -10,6 +10,7 @@ struct Symbol {
    bool isInitialized;
    int line;
    std::string llvmRegister;
+   std::string llvmAllocType;
 };
 
 

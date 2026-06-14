@@ -72,7 +72,7 @@ void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
             }
         }
     }
-    symbolTable.add(decl->name, {decl->varType, decl->isConst, decl->value != nullptr, decl->line, ""});
+    symbolTable.add(decl->name, {decl->varType, decl->isConst, decl->value != nullptr, decl->line, "", ""});
 }
 void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
    auto* decl = static_cast<ArrayDeclNode*>(node);
@@ -121,7 +121,7 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
         }
    }
 
-    symbolTable.add(decl->name, {decl->elementType + "[]", false, !decl->initializers.empty(), decl->line, ""});
+    symbolTable.add(decl->name, {decl->elementType + "[]", false, !decl->initializers.empty(), decl->line, "", ""});
 }
 
 bool SemanticAnalyzer::typeMatchesLiteral(const std::string& type, NodeType litType) {
@@ -308,30 +308,53 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
             tern->resolvedType = finalType;
             return finalType;
         }
-        case NodeType::ASSIGNMENT_EXPR:{
-            auto* assign= static_cast<AssignmentExprNode*>(node);
-            if(!symbolTable.exists(assign->name)){
-                std::cerr<<"Bery:Error [Line "<<assign->line<<"] : Undefined variable '"<<assign->name<<"'\n";
-                errors=true;
+        case NodeType::ASSIGNMENT_EXPR: {
+            auto* assign = static_cast<AssignmentExprNode*>(node);
+            std::string targetType;
+            std::string targetName; 
+            
+            if (assign->target->type == NodeType::IDENT) {
+                auto* ident = static_cast<IdentNode*>(assign->target.get());
+                targetName = ident->name;
+
+                if (!symbolTable.exists(ident->name)) {
+                    std::cerr << "Bery:Error [Line " << assign->line << "] : Undefined variable '" << ident->name << "'\n";
+                    errors = true;
+                    return "unknown";
+                }
+                Symbol& s = symbolTable.get(ident->name);
+                if (s.isConst) {
+                    std::cerr << "Bery:Error [Line " << assign->line << "] : cannot reassign constant variable '" << ident->name << "'\n";
+                    errors = true;
+                    return "unknown";
+                }
+                s.isInitialized = true;
+                targetType = s.type;
+
+            } else if (assign->target->type == NodeType::INDEX_EXPR) {
+                auto* idxNode = static_cast<IndexExprNode*>(assign->target.get());
+                targetName = idxNode->name;
+
+                targetType = analyzeExpression(assign->target.get());
+                if (targetType == "unknown") return "unknown";
+            } else {
+                std::cerr << "Bery:Error [Line " << assign->line << "] : Invalid assignment target\n";
+                errors = true;
                 return "unknown";
             }
-            Symbol& s=symbolTable.get(assign->name);
-            if(s.isConst){
-                std::cerr<<"Bery:Error [Line "<<assign->line<<"] : cannot reassigned constant variable '"<<assign->name<<"'\n";
-                errors=true;
-                return "unknown";
-            }
-            std::string exptype= analyzeExpression(assign->value.get());
-            if(exptype!="unknown" && exptype!=s.type ){
-                if(!(s.type=="float"&& exptype=="int")&&!(s.type=="double"&& exptype=="int")
-                &&!(s.type=="bigint"&& exptype=="int")&&!(s.type=="double"&& exptype=="float")){
-                 std::cerr<<"Bery:Error [Line "<<assign->line<<"] : Type missmatch for assignment to  '"<<assign->name<<"'. Expected '"<<s.type<<"', got '"<<exptype<<"'\n";
-                errors=true;
-                return "unknown";
+
+            std::string exptype = analyzeExpression(assign->value.get());
+            
+            if (exptype != "unknown" && exptype != targetType) {
+                if (!(targetType == "float" && exptype == "int") &&  !(targetType == "double" && exptype == "int") &&
+                    !(targetType == "bigint" && exptype == "int") &&  !(targetType == "double" && exptype == "float")) {
+                    
+                    std::cerr << "Bery:Error [Line " << assign->line << "] : Type missmatch for assignment to  '" << targetName << "'. Expected '" << targetType << "', got '" << exptype << "'\n";
+                    errors = true;
+                    return "unknown";
                 }
             }
-            s.isInitialized=true;
-            return s.type;
+            return targetType;
         }
         case NodeType::CAST_EXPR: {
             auto* castNode = static_cast<CastExprNode*>(node);
@@ -348,6 +371,27 @@ std::string SemanticAnalyzer::analyzeExpression(ASTNode* node){
                 return "unknown";
             }
             return castNode->targetType;
+        }
+        case NodeType::INDEX_EXPR: {
+            auto* idxNode = static_cast<IndexExprNode*>(node);
+            if (!symbolTable.exists(idxNode->name)) {
+                std::cerr << "Bery:Error [Line " << idxNode->line << "]: Undefined array '" << idxNode->name << "'\n";
+                errors = true; 
+                return "unknown";
+            }
+            Symbol& sym = symbolTable.get(idxNode->name);
+            if (sym.type.back() != ']') {
+                std::cerr << "Bery:Error [Line " << idxNode->line << "]: Variable '" << idxNode->name << "' is not subscriptable\n";
+                errors = true; 
+                return "unknown";
+            }
+            std::string idxType = analyzeExpression(idxNode->index.get());
+            if (idxType != "int" && idxType != "bigint") {
+                std::cerr << "Bery:Error [Line " << idxNode->line << "]: Array index must be an integer\n";
+                errors = true; 
+                 return "unknown";
+            }
+            return sym.type.substr(0, sym.type.find('['));
         }
         default:
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";

@@ -25,7 +25,6 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
             return reg;
         }
     }
-
     if (node->type == NodeType::DECIMAL_LIT) {
         auto* lit = static_cast<DecimalLitNode*>(node);
         std::ostringstream ss;
@@ -34,21 +33,18 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         out << "    " << reg << " = fadd " << lt << " 0.0, " << ss.str() << "\n";
         return reg;
     }
-
     if (node->type == NodeType::BOOL_LIT) {
             std::string reg = newReg();
         auto* lit = static_cast<BoolLitNode*>(node);
         out << "    " << reg << " = add i1 0, " << (lit->value? 1:0) << "\n";
         return reg;
     }
-
     if (node->type == NodeType::CHAR_LIT) {
             std::string reg = newReg();
         auto* lit = static_cast<CharLitNode*>(node);
         out << "    " << reg << " = add " << lt << " 0, " << (int)lit->value << "\n"; //for ascii
         return reg;
     }
-
     if (node->type == NodeType::STRING_LIT) {
             auto* lit = static_cast<StringLitNode*>(node);
             std::string strVal = lit->value;
@@ -63,7 +59,6 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
 
             return reg;
     }
-
     if(node->type == NodeType::IDENT){
         auto* ident = static_cast<IdentNode*>(node);
         Symbol& sym = symTable.get(ident->name);
@@ -332,12 +327,32 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
     }
     if (node->type == NodeType::ASSIGNMENT_EXPR) {
         auto* assign = static_cast<AssignmentExprNode*>(node);
+        std::string targetLT;
+        std::string memoryPtr;
+        std::string expectedType;
+
+        if (assign->target->type == NodeType::IDENT) {
+            auto* ident = static_cast<IdentNode*>(assign->target.get());
+            Symbol& sym = symTable.get(ident->name);
+            targetLT = llvmType(sym.type);
+            memoryPtr = sym.llvmRegister;
+            expectedType = sym.type;
+        } else if (assign->target->type == NodeType::INDEX_EXPR) {
+            auto* idxNode = static_cast<IndexExprNode*>(assign->target.get());
+            Symbol& sym = symTable.get(idxNode->name);
+            
+            std::string baseType = sym.type.substr(0, sym.type.find('['));
+            targetLT = llvmType(baseType);
+            expectedType = baseType;
+            
+            std::string arrType = sym.llvmAllocType;
+            std::string idxReg = genExpression(idxNode->index.get(), "int", out);
+            memoryPtr = newReg();
+            out << "    " << memoryPtr << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0, i32 " << idxReg << "\n";
+        }
         
-        Symbol& sym = symTable.get(assign->name);
-        std::string targetLT = llvmType(sym.type);
-        std::string valReg = genExpression(assign->value.get(), sym.type, out);
-        out << "    store " << targetLT << " " << valReg << ", " << targetLT << "* " << sym.llvmRegister << "\n";
-        
+        std::string valReg = genExpression(assign->value.get(), expectedType, out);
+        out << "    store " << targetLT << " " << valReg << ", " << targetLT << "* " << memoryPtr << "\n";
         return valReg;
     }
     if (node->type == NodeType::CAST_EXPR) {
@@ -385,6 +400,22 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
             }
         }
         return resReg;
+    }
+    if (node->type == NodeType::INDEX_EXPR) {
+        auto* idxNode = static_cast<IndexExprNode*>(node);
+        Symbol& sym = symTable.get(idxNode->name);
+        
+        std::string baseType = sym.type.substr(0, sym.type.find('['));
+        std::string lt = llvmType(baseType);
+        std::string arrType = sym.llvmAllocType;
+        
+        std::string idxReg = genExpression(idxNode->index.get(), "int", out);
+        std::string ptrReg = newReg();
+        out << "    " << ptrReg << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0, i32 " << idxReg << "\n";
+        
+        std::string valReg = newReg();
+        out << "    " << valReg << " = load " << lt << ", " << lt << "* " << ptrReg << "\n";
+        return valReg;
     }
    return "0";
 }
