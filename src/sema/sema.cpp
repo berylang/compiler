@@ -444,4 +444,17 @@ void SemanticAnalyzer::analyzeWhileStmt(ASTNode* node){
     analyzeBlock(whileStmt->body.get());
 }
 
+void SemanticAnalyzer::analyzeDoWhileStmt(ASTNode* node){
+    auto* dowhilestmt = static_cast<DoWhileStmtNode*>(node);
+    std::string conditionType = analyzeExpression(dowhilestmt->condition.get());
+
+    if(conditionType != "bool" && conditionType != "unknown"){
+        std::cerr << "Bery:Error [Line " << dowhilestmt->line << "]: 'while' condition must evaluate to 'bool' \n";
+        errors = true;
+    }
+
+    analyzeBlock(dowhilestmt->body.get());
+
+}
+
 bool SemanticAnalyzer::hasErrors() { return errors; }

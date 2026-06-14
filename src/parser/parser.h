@@ -56,5 +56,6 @@ class Parser {
 
 
     std::unique_ptr<ASTNode> parseWhileStmt();
+    std::unique_ptr<ASTNode> parseDoWhileStmt();
 };
 

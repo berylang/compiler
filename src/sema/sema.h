@@ -21,6 +21,7 @@ private:
 
    void analyzeIfStmt(ASTNode* node);
    void analyzeWhileStmt(ASTNode* node);
+   void analyzeDoWhileStmt(ASTNode* node);
    void analyzeBlock(ASTNode* node);
    void analyzeNode(ASTNode* node);
    void analyzeVarDecl(ASTNode* node);

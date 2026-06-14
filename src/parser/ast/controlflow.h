@@ -73,3 +73,20 @@ struct WhileStmtNode : public ASTNode{
     }
           
 };
+
+struct DoWhileStmtNode : public ASTNode{
+    std::unique_ptr<ASTNode> condition;
+    std::unique_ptr<BlockNode> body;
+
+    DoWhileStmtNode(
+        std::unique_ptr<ASTNode> c,
+        std::unique_ptr<BlockNode> b,
+        int ln
+    ):    condition(std::move(c)),
+          body(std::move(b))
+    {
+        type = NodeType::DOWHILE_STMT;
+        line = ln;
+
+    }
+};

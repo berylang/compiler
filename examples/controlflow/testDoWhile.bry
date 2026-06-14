@@ -1,0 +1,7 @@
+run{
+    int i = 1;
+    do{
+        i++;
+    } while(i<10);
+    int b = i;
+}
