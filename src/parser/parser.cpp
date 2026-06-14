@@ -121,7 +121,7 @@ std::unique_ptr<ASTNode> Parser::parseExpression(){
     if(isassignmentOperator(peek().type)) {
         Token optoken=advance();
         auto value= parseExpression();
-        if(expr->type == NodeType::IDENT){
+        if(expr->type == NodeType::IDENT || expr->type == NodeType::INDEX_EXPR){
             std::string name=static_cast<IdentNode*>(expr.get())->name;
             if(optoken.type!=TokenType::TOKEN_EQUAL){
                 std::string binaryop ;
@@ -143,7 +143,7 @@ std::unique_ptr<ASTNode> Parser::parseExpression(){
                 auto target= std::make_unique<IdentNode>(name,"unknown",optoken.line);
                 value = std::make_unique<BinaryExprNode>(binaryop,std::move(target),std::move(value),optoken.line);
             }
-            return std::make_unique<AssignmentExprNode>(name,std::move(value),optoken.line);
+            return std::make_unique<AssignmentExprNode>(std::move(expr), std::move(value), optoken.line);
 
         }
         std::cerr<<"Bery:Error [Line "<< optoken.line<<"]: Invalid Assignment Target \n";
@@ -159,8 +159,14 @@ std::unique_ptr<ASTNode> Parser::parsePrimary(){
     Token t = peek();
     if (t.type == TokenType::TOKEN_IDENT) {
         advance();
+        if (check(TokenType::TOKEN_LBRACKET)) {
+            advance(); 
+            auto indexExpr = parseExpression();
+            consume(TokenType::TOKEN_RBRACKET, "Expected ']' after array index");
+            return std::make_unique<IndexExprNode>(t.lexeme, std::move(indexExpr), t.line);
+        }
         return std::make_unique<IdentNode>(t.lexeme, "", t.line);
-    } 
+    }
     if (t.type == TokenType::TOKEN_LPARAN) {
         advance();
         auto expression = parseExpression();

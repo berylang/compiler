@@ -1,0 +1,10 @@
+run {
+
+    int a[2];
+
+    a[0] = 10;
+    a[1] = 20;
+
+    float n1 = (float)a[0];
+    float n2 = (float)a[1];
+}
