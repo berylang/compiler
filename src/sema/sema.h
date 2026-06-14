@@ -2,7 +2,7 @@
 #include <memory>
 #include "../parser/ast/node.h"
 #include "symboltable.h"
-
+#include "typechecker.h"
 
 class SemanticAnalyzer {
 public:
@@ -10,12 +10,12 @@ public:
    void analyze();
    bool hasErrors();
    SymbolTable symbolTable;
-   int loopOrSwitchDepth = 0;
 
 
 private:
    ASTNode* root;
-   
+   TypeChecker typeChecker; 
+   int loopOrSwitchDepth = 0;
    bool errors;
 
 
@@ -28,9 +28,5 @@ private:
    void analyzeArrayDecl(ASTNode* node);
    void analyzeSwitchStmt(ASTNode* node);
    void analyzeBreakStmt(ASTNode* node);
-
-   //@deprecated do not use typeMatchesLiteral()
-   bool typeMatchesLiteral(const std::string& type, NodeType litType);
-   std::string analyzeExpression(ASTNode* node);
 };
   

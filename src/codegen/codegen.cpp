@@ -7,7 +7,6 @@
 #include "../parser/ast/controlflow.h"
 #include "../parser/ast/blocknode.h"
 #include "../sema/symboltable.h"
-#include "irgen/controlflow.cpp"
 #include <fstream>
 #include <iomanip>
 

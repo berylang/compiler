@@ -8,6 +8,7 @@ add_executable(bery
     src/parser/parser.cpp
     src/sema/sema.cpp
     src/sema/symboltable.cpp
+    src/sema/typechecker.cpp
     src/codegen/codegen.cpp
     src/codegen/irgen/declarations.cpp
     src/codegen/irgen/expressions.cpp
