@@ -353,16 +353,65 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
 
             memoryPtr = newReg();
             out << "    " << memoryPtr << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
-            
             for (const std::string& reg : indexRegisters) {
                 out << ", i32 " << reg;
             }
             out << "\n";
         }
-        
         std::string valReg = genExpression(assign->value.get(), expectedType, out);
-        out << "    store " << targetLT << " " << valReg << ", " << targetLT << "* " << memoryPtr << "\n";
-        return valReg;
+        if (assign->op == "=") {
+            out << "    store " << targetLT << " " << valReg << ", " << targetLT << "* " << memoryPtr << "\n";
+            return valReg;
+        } else {
+            std::string currentVal = newReg();
+            out << "    " << currentVal << " = load " << targetLT << ", " << targetLT << "* " << memoryPtr << "\n";
+            
+            std::string resultReg = newReg();
+            bool isFloat = (expectedType == "float" || expectedType == "double");
+
+            if (isFloat) {
+                if (assign->op == "+=") out << "    " << resultReg << " = fadd " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "-=") out << "    " << resultReg << " = fsub " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "*=") out << "    " << resultReg << " = fmul " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "/=") out << "    " << resultReg << " = fdiv " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "**=") {
+                    std::string leftDouble = newReg();
+                    std::string rightDouble = newReg();
+                    if (expectedType == "float") {
+                        out << "    " << leftDouble << " = fpext float " << currentVal << " to double\n";
+                        out << "    " << rightDouble << " = fpext float " << valReg << " to double\n";
+                        std::string powReg = newReg();
+                        out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
+                        out << "    " << resultReg << " = fptrunc double " << powReg << " to float\n";
+                    } else {
+                        out << "    " << resultReg << " = call double @llvm.pow.f64(double " << currentVal << ", double " << valReg << ")\n";
+                    }
+                }
+            } else {
+                if (assign->op == "+=") out << "    " << resultReg << " = add " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "-=") out << "    " << resultReg << " = sub " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "*=") out << "    " << resultReg << " = mul " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "/=") out << "    " << resultReg << " = sdiv " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "%=") out << "    " << resultReg << " = srem " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "<<=") out << "    " << resultReg << " = shl " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == ">>=") out << "    " << resultReg << " = ashr " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "&=") out << "    " << resultReg << " = and " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "|=") out << "    " << resultReg << " = or " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "^=") out << "    " << resultReg << " = xor " << targetLT << " " << currentVal << ", " << valReg << "\n";
+                else if (assign->op == "**=") {
+                    std::string leftDouble = newReg();
+                    std::string rightDouble = newReg();
+                    out << "    " << leftDouble << " = sitofp " << targetLT << " " << currentVal << " to double\n";
+                    out << "    " << rightDouble << " = sitofp " << targetLT << " " << valReg << " to double\n";
+                    std::string powReg = newReg();
+                    out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
+                    out << "    " << resultReg << " = fptosi double " << powReg << " to " << targetLT << "\n";
+                }
+            }
+            
+            out << "    store " << targetLT << " " << resultReg << ", " << targetLT << "* " << memoryPtr << "\n";
+            return resultReg;
+        }
     }
     if (node->type == NodeType::CAST_EXPR) {
         auto* castNode = static_cast<CastExprNode*>(node);
