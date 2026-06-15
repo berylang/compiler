@@ -11,6 +11,7 @@ struct Symbol {
    int line;
    std::string llvmRegister;
    std::string llvmAllocType;
+   int arraySize;
 };
 
 

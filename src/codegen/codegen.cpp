@@ -208,4 +208,6 @@ void CodeGen::genStatement(ASTNode* stmt, std::ostream& out) {
     else if (stmt->type == NodeType::PASS_STMT) {}
     else if (stmt->type == NodeType::CONTINUE_STMT) genContinueStmt(stmt, out);
     else if (stmt->type == NodeType::RETURN_STMT) genReturnStmt(stmt, out);
+    else if (stmt->type == NodeType::FOR_STMT) genForStmt(stmt, out);
+    else if (stmt->type == NodeType::FOR_IN_STMT) genForInStmt(stmt, out);
 }

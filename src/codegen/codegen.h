@@ -46,6 +46,8 @@ private:
    void genDoWhileStmt(ASTNode* node, std::ostream& out);
    void genBreakStmt(ASTNode* node, std::ostream& out);
    void genContinueStmt(ASTNode* node, std::ostream& out);
+   void genForStmt(ASTNode* node, std::ostream& out);
+   void genForInStmt(ASTNode* node, std::ostream& out);
 
    void genFuncDef(ASTNode* node, std::ostream& out);
    void genReturnStmt(ASTNode* node, std::ostream& out);
