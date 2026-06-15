@@ -3,6 +3,7 @@
 #include "../parser/ast/node.h"
 #include "symboltable.h"
 #include "typechecker.h"
+#include <unordered_map>
 
 class SemanticAnalyzer {
 public:
@@ -17,7 +18,8 @@ private:
    TypeChecker typeChecker; 
    int loopOrSwitchDepth = 0;
    bool errors;
-
+   std::unordered_map<std::string, FunctionSignature> functions;
+   std::string currentFunctionReturnType = "";
 
    void analyzeIfStmt(ASTNode* node);
    void analyzeWhileStmt(ASTNode* node);
@@ -28,5 +30,7 @@ private:
    void analyzeArrayDecl(ASTNode* node);
    void analyzeSwitchStmt(ASTNode* node);
    void analyzeBreakStmt(ASTNode* node);
+
+   void analyzeFuncDef(ASTNode* node);
+   void analyzeReturnStmt(ASTNode* node);
 };
-  

@@ -3,8 +3,8 @@
 #include "../parser/ast/literals.h"
 #include <iostream>
 
-TypeChecker::TypeChecker(SymbolTable& symTable, bool& errorsFlag) 
-    : symbolTable(symTable), errors(errorsFlag) {}
+TypeChecker::TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag) 
+    : symbolTable(symTable), functions(funcs), errors(errorsFlag) {}
 
 bool TypeChecker::typeMatchesLiteral(const std::string& type, NodeType litType) {
    if (type == "int"    && litType == NodeType::INT_LIT)     return true;
@@ -257,9 +257,39 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
             if (idxType != "int" && idxType != "bigint") {
                 std::cerr << "Bery:Error [Line " << idxNode->line << "]: Array index must be an integer\n";
                 errors = true; 
-                 return "unknown";
+                return "unknown";
             }
             return sym.type.substr(0, sym.type.find('['));
+        }
+        case NodeType::CALL_EXPR: {
+            auto* call = static_cast<CallExprNode*>(node);
+            
+            if (functions.find(call->callee) == functions.end()) {
+                std::cerr << "Bery:Error [Line " << call->line << "]: Undefined function '" << call->callee << "'\n";
+                errors = true; 
+                return "unknown";
+            }
+            
+            FunctionSignature& sig = functions[call->callee];
+            if (sig.paramTypes.size() != call->arguments.size()) {
+                std::cerr << "Bery:Error [Line " << call->line << "]: Function '" << call->callee << "' expects " << sig.paramTypes.size() << " arguments, got " << call->arguments.size() << "\n";
+                errors = true; 
+                return "unknown";
+            }
+            
+            for (size_t i = 0; i < call->arguments.size(); ++i) {
+                std::string argType = analyzeExpression(call->arguments[i].get());
+                if (argType != "unknown" && argType != sig.paramTypes[i]) {
+                    if (!(sig.paramTypes[i] == "float" && argType == "int") &&
+                        !(sig.paramTypes[i] == "double" && argType == "float") &&
+                        !(sig.paramTypes[i] == "double" && argType == "int") &&
+                        !(sig.paramTypes[i] == "bigint" && argType == "int")) {
+                        std::cerr << "Bery:Error [Line " << call->line << "]: Type mismatch in argument " << i+1 << " of '" << call->callee << "'. Expected '" << sig.paramTypes[i] << "', got '" << argType << "'\n";
+                        errors = true;
+                    }
+                }
+            }
+            return sig.returnType;
         }
         default:
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";

@@ -6,6 +6,12 @@
 #include "../parser/ast/node.h"
 #include "../sema/symboltable.h"
 
+
+struct CodeGenFunctionSignature {
+    std::string returnType;
+    std::vector<std::string> paramTypes;
+};
+
 class CodeGen {
 public:
    CodeGen(ASTNode* root, SymbolTable& symTable);
@@ -18,6 +24,8 @@ private:
    SymbolTable& symTable;
    std::ostringstream globalStrings;
    std::vector<std::string> breakTracker;
+   std::unordered_map<std::string, CodeGenFunctionSignature> functions;
+   std::string currentFuncReturn;
    std::string extractConstant(ASTNode* node);
 
    std::string newReg();
@@ -36,4 +44,7 @@ private:
    void genSwitchStmt(ASTNode* node, std::ostream& out);
    void genDoWhileStmt(ASTNode* node, std::ostream& out);
    void genBreakStmt(ASTNode* node, std::ostream& out);
+
+   void genFuncDef(ASTNode* node, std::ostream& out);
+   void genReturnStmt(ASTNode* node, std::ostream& out);
 };

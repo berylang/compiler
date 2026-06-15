@@ -6,6 +6,7 @@
 #include "../parser/ast/expressions.h"
 #include "../parser/ast/controlflow.h"
 #include "../parser/ast/blocknode.h"
+#include "../parser/ast/functions.h"
 #include "../sema/symboltable.h"
 #include <fstream>
 #include <iomanip>
@@ -18,6 +19,18 @@ void CodeGen::generate(const std::string& outputPath) {
     
     std::ostringstream globalsOut;
     globalsOut << "declare double @llvm.pow.f64(double, double)\n";
+
+    for (auto& node : program->globals) {
+        if (node->type == NodeType::FUNC_DEF) {
+            auto* func = static_cast<FunctionDefNode*>(node.get());
+            CodeGenFunctionSignature sig;
+            sig.returnType = func->returnType;
+            for (auto& p : func->parameters) sig.paramTypes.push_back(p.first);
+            functions[func->name] = sig;
+            
+            genFuncDef(node.get(), globalsOut);
+        }
+    }
 
     for (auto& node : program->globals) {
         if (node->type == NodeType::VAR_DECL) {
@@ -162,4 +175,5 @@ void CodeGen::genStatement(ASTNode* stmt, std::ostream& out) {
     else if (stmt->type == NodeType::SWITCH_STMT) genSwitchStmt(stmt, out);
     else if (stmt->type == NodeType::BREAK_STMT) genBreakStmt(stmt, out);
     else if (stmt->type == NodeType::BLOCK) genBlock(stmt, out);
+    else if (stmt->type == NodeType::RETURN_STMT) genReturnStmt(stmt, out);
 }

@@ -7,11 +7,19 @@
 #include "../parser/ast/controlflow.h"
 
 SemanticAnalyzer::SemanticAnalyzer(ASTNode* root)
-   : root(root), errors(false), typeChecker(symbolTable, errors) {}
+   : root(root), errors(false), typeChecker(symbolTable, functions, errors) {}
 
 void SemanticAnalyzer::analyze() {
     auto* program = static_cast<ProgramNode*>(root);
-
+    for (auto& node : program->globals) {
+        if (node->type == NodeType::FUNC_DEF) {
+            auto* func = static_cast<FunctionDefNode*>(node.get());
+            FunctionSignature sig;
+            sig.returnType = func->returnType;
+            for (auto& p : func->parameters) sig.paramTypes.push_back(p.first);
+            functions[func->name] = sig;
+        }
+    }
     for (auto& node : program->globals)
         analyzeNode(node.get());
     if (program->runBlock) {
@@ -33,6 +41,10 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
         analyzeIfStmt(node);
     else if (node->type == NodeType::WHILE_STMT)
         analyzeWhileStmt(node);
+    else if (node->type == NodeType::FUNC_DEF) 
+        analyzeFuncDef(node);
+    else if (node->type == NodeType::RETURN_STMT) 
+        analyzeReturnStmt(node);
 } 
 
 void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
@@ -224,3 +236,47 @@ void SemanticAnalyzer::analyzeDoWhileStmt(ASTNode* node){
 }
 
 bool SemanticAnalyzer::hasErrors() { return errors; }
+
+
+void SemanticAnalyzer::analyzeFuncDef(ASTNode* node) {
+    auto* func = static_cast<FunctionDefNode*>(node);
+    currentFunctionReturnType = func->returnType;
+    
+    symbolTable.pushScope();
+    for (auto& param : func->parameters) {
+        symbolTable.add(param.second, {param.first, false, true, func->line, "", ""});
+    }
+    
+    for (auto& stmt : func->body->statements) 
+        analyzeNode(stmt.get());
+    
+    symbolTable.popScope();
+    currentFunctionReturnType = "";
+}
+
+void SemanticAnalyzer::analyzeReturnStmt(ASTNode* node) {
+    auto* ret = static_cast<ReturnStmtNode*>(node);
+    if (currentFunctionReturnType == "") {
+        std::cerr << "Bery:Error [Line " << ret->line << "]: 'return' used outside of a function.\n";
+        errors = true; 
+        return;
+    }
+    
+    if (!ret->value) {
+        if (currentFunctionReturnType != "void") {
+            std::cerr << "Bery:Error [Line " << ret->line << "]: Expected return value of type '" << currentFunctionReturnType << "'\n";
+            errors = true;
+        }
+    } else {
+        std::string valType = typeChecker.analyzeExpression(ret->value.get());
+        if (valType != "unknown" && valType != currentFunctionReturnType) {
+             if (!(currentFunctionReturnType == "float" && valType == "int") &&
+                 !(currentFunctionReturnType == "double" && valType == "float") &&
+                 !(currentFunctionReturnType == "double" && valType == "int") &&
+                 !(currentFunctionReturnType == "bigint" && valType == "int")) {
+                 std::cerr << "Bery:Error [Line " << ret->line << "]: Type mismatch in return. Expected '" << currentFunctionReturnType << "', got '" << valType << "'\n";
+                 errors = true;
+             }
+        }
+    }
+}

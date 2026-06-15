@@ -2,6 +2,7 @@
 #include "../../parser/ast/expressions.h"
 #include "../../parser/ast/literals.h"
 #include "../../sema/symboltable.h"
+#include "../../parser/ast/functions.h"
 #include <iomanip>
 #include <sstream>
 
@@ -416,6 +417,26 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         std::string valReg = newReg();
         out << "    " << valReg << " = load " << lt << ", " << lt << "* " << ptrReg << "\n";
         return valReg;
+    }
+    if (node->type == NodeType::CALL_EXPR) {
+        auto* call = static_cast<CallExprNode*>(node);
+        CodeGenFunctionSignature& sig = functions[call->callee];
+        
+        std::string argsStr = "";
+        for (size_t i = 0; i < call->arguments.size(); ++i) {
+            std::string argReg = genExpression(call->arguments[i].get(), sig.paramTypes[i], out);
+            argsStr += llvmType(sig.paramTypes[i]) + " " + argReg;
+            if (i + 1 < call->arguments.size()) argsStr += ", ";
+        }
+        
+        if (sig.returnType == "void") {
+            out << "    call void @" << call->callee << "(" << argsStr << ")\n";
+            return "0";
+        } else {
+            std::string resReg = newReg();
+            out << "    " << resReg << " = call " << llvmType(sig.returnType) << " @" << call->callee << "(" << argsStr << ")\n";
+            return resReg;
+        }
     }
    return "0";
 }
