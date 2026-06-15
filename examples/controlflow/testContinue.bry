@@ -1,0 +1,11 @@
+run{
+    int count = 0;
+    do{
+        count++;
+        if(count==5){
+            continue;
+        }
+        count++;
+    }while(count<=10);
+    int b = count;
+}

@@ -46,6 +46,9 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
         analyzeFuncDef(node);
     else if (node->type == NodeType::RETURN_STMT) 
         analyzeReturnStmt(node);
+    else if (node->type == NodeType::CONTINUE_STMT)
+        analyzeContinueStmt(node);
+    else if (node->type == NodeType::PASS_STMT){}
 } 
 
 void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
@@ -215,6 +218,13 @@ void SemanticAnalyzer::analyzeBreakStmt(ASTNode* node) {
     }
 }
 
+void SemanticAnalyzer::analyzeContinueStmt(ASTNode* node) {
+    if (loopDepth <= 0){
+        std::cerr << "Bery:Error [Line " << node->line << "]: 'continue' used outside of a loop. \n";
+        errors = true;
+    }
+}
+
 void SemanticAnalyzer::analyzeWhileStmt(ASTNode* node){
     auto* whileStmt = static_cast<WhileStmtNode*>(node);
     std::string conditionType = typeChecker.analyzeExpression(whileStmt->condition.get());
@@ -225,7 +235,9 @@ void SemanticAnalyzer::analyzeWhileStmt(ASTNode* node){
     }
 
     loopOrSwitchDepth++;
+    loopDepth++;
     analyzeBlock(whileStmt->body.get());
+    loopDepth--;
     loopOrSwitchDepth--;
 }
 
@@ -239,7 +251,9 @@ void SemanticAnalyzer::analyzeDoWhileStmt(ASTNode* node){
     }
 
     loopOrSwitchDepth++;
+    loopDepth++;
     analyzeBlock(dowhilestmt->body.get());
+    loopDepth--;
     loopOrSwitchDepth--;
 }
 

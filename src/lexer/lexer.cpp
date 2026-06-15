@@ -25,7 +25,9 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"while", TokenType::TOKEN_WHILE},
     {"do", TokenType::TOKEN_DOWHILE},
     {"func", TokenType::TOKEN_FUNC},
-    {"return", TokenType::TOKEN_RETURN}
+    {"return", TokenType::TOKEN_RETURN},
+    {"continue", TokenType::TOKEN_CONTINUE},
+    {"pass", TokenType::TOKEN_PASS}
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}

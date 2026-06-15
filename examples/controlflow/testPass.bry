@@ -1,0 +1,6 @@
+func Display(){
+    pass;
+}
+run{
+    Display();
+}

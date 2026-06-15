@@ -418,6 +418,12 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
     if (check(TokenType::TOKEN_BREAK)) {
         return parseBreakStmt();
     }
+    if(check(TokenType::TOKEN_CONTINUE)) {
+        return parseContinueStmt();
+    }
+    if(check(TokenType::TOKEN_PASS)) {
+        return parsePassStmt();
+    }
     if(check(TokenType::TOKEN_RETURN)){
         return parseReturnStmt();
     }
@@ -542,9 +548,24 @@ std::unique_ptr<ASTNode> Parser::parseSwitchStmt() {
 std::unique_ptr<ASTNode> Parser::parseBreakStmt() {
     int line = previous().line;
     advance();
-    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after break");
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after 'break'");
     return std::make_unique<BreakStmtNode>(line);
 }
+
+std::unique_ptr<ASTNode> Parser::parseContinueStmt() {
+    int line = previous().line;
+    advance();
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after 'continue'");
+    return std::make_unique<ContinueStmtNode>(line);
+}
+
+std::unique_ptr<ASTNode> Parser::parsePassStmt() {
+    int line = previous().line;
+    advance();
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after 'pass'");
+    return std::make_unique<PassStmtNode>(line);
+}
+
 std::unique_ptr<ASTNode> Parser::parseWhileStmt(){
     advance();
     int line = previous().line;

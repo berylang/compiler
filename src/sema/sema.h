@@ -17,6 +17,7 @@ private:
    ASTNode* root;
    TypeChecker typeChecker; 
    int loopOrSwitchDepth = 0;
+   int loopDepth = 0;
    bool errors;
    std::unordered_map<std::string, FunctionSignature> functions;
    std::string currentFunctionReturnType = "";
@@ -30,6 +31,7 @@ private:
    void analyzeArrayDecl(ASTNode* node);
    void analyzeSwitchStmt(ASTNode* node);
    void analyzeBreakStmt(ASTNode* node);
+   void analyzeContinueStmt(ASTNode* node);
 
    void analyzeFuncDef(ASTNode* node);
    void analyzeReturnStmt(ASTNode* node);

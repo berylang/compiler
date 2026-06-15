@@ -56,6 +56,22 @@ struct BreakStmtNode : public ASTNode
         line = ln;
     }
 };
+
+struct ContinueStmtNode : public ASTNode{
+    ContinueStmtNode(int ln)
+    {
+        type = NodeType::CONTINUE_STMT;
+        line = ln;
+    }
+};
+
+struct PassStmtNode : public ASTNode {
+    PassStmtNode(int ln){
+        type = NodeType::PASS_STMT;
+        line = ln;
+    }
+};
+
 struct WhileStmtNode : public ASTNode{
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<BlockNode> body;
