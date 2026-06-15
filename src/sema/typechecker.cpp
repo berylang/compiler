@@ -179,8 +179,16 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
         }
         case NodeType::ASSIGNMENT_EXPR: {
             auto* assign = static_cast<AssignmentExprNode*>(node);
-            std::string targetType;
-            std::string targetName; 
+            std::string targetName = "";
+            std::string targetType = analyzeExpression(assign->target.get());
+            std::string valueType = analyzeExpression(assign->value.get());
+
+            if (assign->op != "=") {
+                if (targetType != "int" && targetType != "float" && targetType != "double" && targetType != "bigint") {
+                    std::cerr << "Bery:Error [Line " << assign->line << "]: Cannot use compound assignment '" << assign->op << "' on type '" << targetType << "'\n";
+                    errors = true;
+                }
+            } 
             
             if (assign->target->type == NodeType::IDENT) {
                 auto* ident = static_cast<IdentNode*>(assign->target.get());
