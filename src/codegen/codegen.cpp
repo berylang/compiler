@@ -198,7 +198,7 @@ void CodeGen::genStatement(ASTNode* stmt, std::ostream& out) {
     
     if (stmt->type == NodeType::VAR_DECL) genVarDecl(stmt, out);
     else if (stmt->type == NodeType::ARRAY_DECL) genArrayDecl(stmt, out);
-    else if (stmt->type == NodeType::ASSIGNMENT_EXPR || stmt->type == NodeType::UNARY_EXPR) genExpression(stmt, "any", out);
+    else if (stmt->type == NodeType::ASSIGNMENT_EXPR || stmt->type == NodeType::UNARY_EXPR ||stmt->type == NodeType::CALL_EXPR) genExpression(stmt, "any", out);
     else if (stmt->type == NodeType::IF_STMT) genIfStmt(stmt, out);
     else if (stmt->type == NodeType::WHILE_STMT) genWhileStmt(stmt, out);
     else if (stmt->type == NodeType::DOWHILE_STMT) genDoWhileStmt(stmt, out);

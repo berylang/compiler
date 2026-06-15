@@ -1,0 +1,10 @@
+
+
+func display() {
+    int a= 10;
+    return;
+}
+
+run {
+    display();
+}

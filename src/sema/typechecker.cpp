@@ -1,6 +1,7 @@
 #include "typechecker.h"
 #include "../parser/ast/expressions.h"
 #include "../parser/ast/literals.h"
+#include "../parser/ast/functions.h"
 #include <iostream>
 
 TypeChecker::TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag) 

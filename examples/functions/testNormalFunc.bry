@@ -1,0 +1,9 @@
+
+
+func hello() -> double {
+    return 3.14;
+}
+
+run {
+    hello();
+}

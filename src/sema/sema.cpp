@@ -2,6 +2,7 @@
 #include "../parser/ast/programnode.h"
 #include "../parser/ast/vardecl.h"
 #include "../parser/ast/arraydeclare.h"
+#include "../parser/ast/functions.h"
 #include <iostream>
 #include "../parser/ast/blocknode.h"
 #include "../parser/ast/controlflow.h"

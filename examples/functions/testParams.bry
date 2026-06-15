@@ -1,0 +1,13 @@
+
+func myFunc(int a, int b) -> int {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+
+}
+
+run {
+    myFunc(10, 20);
+}

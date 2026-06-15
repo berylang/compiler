@@ -69,8 +69,19 @@ void CodeGen::genFuncDef(ASTNode* node, std::ostream& out) {
     
     for (auto& stmt : func->body->statements) genStatement(stmt.get(), out);
     symTable.popScope();
-    if (func->returnType == "void") out << "    ret void\n";
-    else out << "    ret " << retLT << " 0\n";
+    bool endsWithReturn = false;
+    if (!func->body->statements.empty() && 
+        func->body->statements.back()->type == NodeType::RETURN_STMT) {
+        endsWithReturn = true;
+    }
+    
+    if (!endsWithReturn) {
+        if (func->returnType == "void") out << "    ret void\n";
+        else out << "    ret " << retLT << " 0\n"; 
+    }
+    
+    out << "}\n";
+    currentFuncReturn = "";
     
     out << "}\n";
     currentFuncReturn = "";
