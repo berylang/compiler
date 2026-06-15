@@ -8,29 +8,35 @@
 #include <iostream>
 #include "ast/expressions.h"
 #include "ast/controlflow.h"
+#include "ast/functions.h"
 #include "ast/blocknode.h"
 
 Parser::Parser(const std::vector<Token>& tokens)
     : tokens(tokens), current(0), errors(false) {}
 
 std::unique_ptr<ASTNode> Parser::parse() {
-    auto program = std::make_unique<ProgramNode>();
+    auto program = std::make_unique<ProgramNode>(); 
     while (!isAtEnd() && !check(TokenType::TOKEN_RUN)) {
         try {
-            bool isConst = false;
-            if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
-            if (isTypeToken(peek().type)) {
-                if (!isConst && isArrayDecl()) {
-                    auto decl = parseArrayDecl();
-                    program->globals.push_back(std::move(decl));
+            if (check(TokenType::TOKEN_FUNC)) {
+                auto funcDef = parseFunctionDef();
+                program->globals.push_back(std::move(funcDef));
+            } else {
+                bool isConst = false;
+                if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
+                if (isTypeToken(peek().type)) {
+                    if (!isConst && isArrayDecl()) {
+                        auto decl = parseArrayDecl();
+                        program->globals.push_back(std::move(decl));
+                    } else {
+                        auto decls = parseVarDecl(isConst);
+                        for (auto& d : decls) program->globals.push_back(std::move(d));
+                    }
                 } else {
-                    auto decls = parseVarDecl(isConst);
-                    for (auto& d : decls) program->globals.push_back(std::move(d));
+                    std::cerr << "Bery:Error [Line " << peek().line << "]: Unexpected token '" << peek().lexeme << "'\n";
+                    errors = true;
+                    throw ParseError();
                 }
-            }else {
-                std::cerr << "Bery:Error [Line " << peek().line << "]: Unexpected token '" << peek().lexeme << "'\n";
-                errors = true;
-                throw ParseError();
             }
         } catch(ParseError& e) {
             synchronize();
@@ -165,6 +171,17 @@ std::unique_ptr<ASTNode> Parser::parsePrimary(){
             consume(TokenType::TOKEN_RBRACKET, "Expected ']' after array index");
             return std::make_unique<IndexExprNode>(t.lexeme, std::move(indexExpr), t.line);
         }
+        if (check(TokenType::TOKEN_LPARAN)) {
+            advance(); 
+            std::vector<std::unique_ptr<ASTNode>> args;
+            if (!check(TokenType::TOKEN_RPARAN)) {
+                do {
+                    args.push_back(parseExpression());
+                } while (check(TokenType::TOKEN_COMMA) && (advance(), true));
+            }
+            consume(TokenType::TOKEN_RPARAN, "Expected ')' after arguments");
+            return std::make_unique<CallExprNode>(t.lexeme, std::move(args), t.line);
+        }
         return std::make_unique<IdentNode>(t.lexeme, "", t.line);
     }
     if (t.type == TokenType::TOKEN_LPARAN) {
@@ -175,6 +192,7 @@ std::unique_ptr<ASTNode> Parser::parsePrimary(){
     }
     return parseLiteral();
 }
+
 
 
 std::unique_ptr<ASTNode> Parser::parsePostfix(){
@@ -404,6 +422,12 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
     if (check(TokenType::TOKEN_BREAK)) {
         return parseBreakStmt();
     }
+    if(check(TokenType::TOKEN_FUNC)){
+        return parseFunctionDef();
+    }
+    if(check(TokenType::TOKEN_RETURN)){
+        return parseReturnStmt();
+    }
 
     if(isTypeToken(peek().type)){
         if(!isConst && isArrayDecl())return parseArrayDecl();
@@ -625,6 +649,70 @@ std::unique_ptr<ASTNode> Parser::parseArrayDecl() {
     consume(TokenType::TOKEN_SEMICOLON, "Expected ';'");
     return std::make_unique<ArrayDeclNode>(elementType, name, size, std::move(initializers), nameToken.line);
 }
+
+std::unique_ptr<ASTNode> Parser::parseFunctionDef() {
+    advance(); 
+    int line = previous().line;
+    Token nameToken = consume(TokenType::TOKEN_IDENT, "Expected function name");
+    consume(TokenType::TOKEN_LPARAN, "Expected '(' after function name");
+
+    std::vector<std::pair<std::string, std::string>> parameters;
+    if (!check(TokenType::TOKEN_RPARAN)) {
+        do {
+            if (!isTypeToken(peek().type)) {
+                std::cerr << "Bery:Error [Line " << peek().line << "]: Expected parameter type\n";
+                errors = true;
+                throw ParseError();
+            }
+            std::string paramType = peek().lexeme;
+            advance();
+            if (check(TokenType::TOKEN_LBRACKET)) {
+                advance();
+                consume(TokenType::TOKEN_RBRACKET, "Expected ']' for array parameter");
+                paramType += "[]";
+            }
+            Token paramName = consume(TokenType::TOKEN_IDENT, "Expected parameter name");
+            parameters.push_back({paramType, paramName.lexeme});
+        } while (check(TokenType::TOKEN_COMMA) && (advance(), true));
+    }
+    consume(TokenType::TOKEN_RPARAN, "Expected ')' after parameters");
+    consume(TokenType::TOKEN_ARROW, "Expected '->' after parameter list");
+
+    std::string returnType;
+    if (peek().type == TokenType::TOKEN_NONE) {
+        returnType = "None";
+        advance();
+    } else if (isTypeToken(peek().type)) {
+        returnType = peek().lexeme;
+        advance();
+        if (check(TokenType::TOKEN_LBRACKET)) {
+            advance();
+            consume(TokenType::TOKEN_RBRACKET, "Expected ']'");
+            returnType += "[]";
+        }
+    } else {
+        std::cerr << "Bery:Error [Line " << peek().line << "]: Expected function return type\n";
+        errors = true;
+        throw ParseError();
+    }
+
+    consume(TokenType::TOKEN_LBRACE, "Expected '{' to start function body");
+    auto body = parseBlock();
+
+    return std::make_unique<FunctionDefNode>(nameToken.lexeme, std::move(parameters), returnType, std::move(body), line);
+}
+
+std::unique_ptr<ASTNode> Parser::parseReturnStmt() {
+    advance(); 
+    int line = previous().line;
+    std::unique_ptr<ASTNode> value = nullptr;
+    if (!check(TokenType::TOKEN_SEMICOLON)) {
+        value = parseExpression();
+    }
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after return value");
+    return std::make_unique<ReturnStmtNode>(std::move(value), line);
+}
+
 
 bool Parser::hasErrors() {return errors;}
 

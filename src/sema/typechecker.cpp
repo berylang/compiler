@@ -257,7 +257,7 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
             if (idxType != "int" && idxType != "bigint") {
                 std::cerr << "Bery:Error [Line " << idxNode->line << "]: Array index must be an integer\n";
                 errors = true; 
-                 return "unknown";
+                return "unknown";
             }
             return sym.type.substr(0, sym.type.find('['));
         }

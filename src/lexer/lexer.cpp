@@ -23,7 +23,11 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"break",TokenType::TOKEN_BREAK},
     {"default",TokenType::TOKEN_DEFAULT},
     {"while", TokenType::TOKEN_WHILE},
-    {"do", TokenType::TOKEN_DOWHILE}
+    {"do", TokenType::TOKEN_DOWHILE},
+    {"func", TokenType::TOKEN_FUNC},
+    {"return", TokenType::TOKEN_RETURN},
+    {"None", TokenType::TOKEN_NONE}
+
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}
@@ -143,6 +147,11 @@ void Lexer::scanToken() {
             else if(peek()=='='){
                 advance();
                 tokens.push_back({TokenType::TOKEN_SUB_ASSIGN,"-=",line});
+                return;
+            }
+            else if(peek()=='>'){
+                advance();
+                tokens.push_back({TokenType::TOKEN_ARROW, "->", line});
                 return;
             }
             else{

@@ -29,4 +29,3 @@ private:
    void analyzeSwitchStmt(ASTNode* node);
    void analyzeBreakStmt(ASTNode* node);
 };
-  
