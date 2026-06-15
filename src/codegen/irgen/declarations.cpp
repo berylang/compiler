@@ -1,6 +1,7 @@
 #include "../codegen.h"
 #include "../../parser/ast/vardecl.h"
 #include "../../parser/ast/arraydeclare.h"
+#include "../../parser/ast/functions.h"
 
 
 void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
@@ -40,4 +41,47 @@ void CodeGen::genArrayDecl(ASTNode* node, std::ostream& out) {
       out << "    " << ptrReg << " = getelementptr " << lt << ", " << lt << "* " << flatPtr << ", i32 " << i << "\n";
       out << "    store " << lt << " " << valReg << ", " << lt << "* " << ptrReg << "\n";
    }
+}
+
+void CodeGen::genFuncDef(ASTNode* node, std::ostream& out) {
+    auto* func = static_cast<FunctionDefNode*>(node);
+    std::string retLT = (func->returnType == "void") ? "void" : llvmType(func->returnType);
+    currentFuncReturn = func->returnType;
+    
+    out << "\ndefine " << retLT << " @" << func->name << "(";
+    for (size_t i = 0; i < func->parameters.size(); ++i) {
+        out << llvmType(func->parameters[i].first) << " %" << func->parameters[i].second << "_arg";
+        if (i + 1 < func->parameters.size()) out << ", ";
+    }
+    out << ") {\nentry:\n";
+    
+    symTable.pushScope();
+    for (auto& param : func->parameters) {
+        std::string pType = llvmType(param.first);
+        std::string pName = param.second;
+        std::string memReg = "%" + pName + "_" + std::to_string(++regCounter);
+        
+        symTable.add(pName, {param.first, false, true, func->line, memReg, pType});
+        
+        out << "    " << memReg << " = alloca " << pType << "\n";
+        out << "    store " << pType << " %" << pName << "_arg, " << pType << "* " << memReg << "\n";
+    }
+    
+    for (auto& stmt : func->body->statements) genStatement(stmt.get(), out);
+    symTable.popScope();
+    if (func->returnType == "void") out << "    ret void\n";
+    else out << "    ret " << retLT << " 0\n";
+    
+    out << "}\n";
+    currentFuncReturn = "";
+}
+
+void CodeGen::genReturnStmt(ASTNode* node, std::ostream& out) {
+    auto* retNode = static_cast<ReturnStmtNode*>(node);
+    if (!retNode->value) {
+        out << "    ret void\n";
+    } else {
+        std::string valReg = genExpression(retNode->value.get(), currentFuncReturn, out);
+        out << "    ret " << llvmType(currentFuncReturn) << " " << valReg << "\n";
+    }
 }
