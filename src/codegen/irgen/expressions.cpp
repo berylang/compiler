@@ -344,11 +344,19 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
             std::string baseType = sym.type.substr(0, sym.type.find('['));
             targetLT = llvmType(baseType);
             expectedType = baseType;
-            
             std::string arrType = sym.llvmAllocType;
-            std::string idxReg = genExpression(idxNode->index.get(), "int", out);
+            std::vector<std::string> indexRegisters;
+            for (auto& idx : idxNode->indices) {
+                indexRegisters.push_back(genExpression(idx.get(), "int", out));
+            }
+
             memoryPtr = newReg();
-            out << "    " << memoryPtr << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0, i32 " << idxReg << "\n";
+            out << "    " << memoryPtr << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
+            
+            for (const std::string& reg : indexRegisters) {
+                out << ", i32 " << reg;
+            }
+            out << "\n";
         }
         
         std::string valReg = genExpression(assign->value.get(), expectedType, out);
@@ -408,10 +416,18 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         std::string baseType = sym.type.substr(0, sym.type.find('['));
         std::string lt = llvmType(baseType);
         std::string arrType = sym.llvmAllocType;
-        
-        std::string idxReg = genExpression(idxNode->index.get(), "int", out);
+        std::vector<std::string> indexRegisters;
+        for (auto& idx : idxNode->indices) {
+            indexRegisters.push_back(genExpression(idx.get(), "int", out));
+        }
+
         std::string ptrReg = newReg();
-        out << "    " << ptrReg << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0, i32 " << idxReg << "\n";
+        out << "    " << ptrReg << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
+
+        for (const std::string& reg : indexRegisters) {
+            out << ", i32 " << reg;
+        }
+        out << "\n";
         
         std::string valReg = newReg();
         out << "    " << valReg << " = load " << lt << ", " << lt << "* " << ptrReg << "\n";

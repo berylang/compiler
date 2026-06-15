@@ -248,18 +248,37 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
                 return "unknown";
             }
             Symbol& sym = symbolTable.get(idxNode->name);
-            if (sym.type.back() != ']') {
+            int dimCount = 0;
+            size_t pos = sym.type.find('[');
+            while (pos != std::string::npos) {
+                dimCount++;
+                pos = sym.type.find('[', pos + 1);
+            }
+
+            if (dimCount == 0) {
                 std::cerr << "Bery:Error [Line " << idxNode->line << "]: Variable '" << idxNode->name << "' is not subscriptable\n";
                 errors = true; 
                 return "unknown";
             }
-            std::string idxType = analyzeExpression(idxNode->index.get());
-            if (idxType != "int" && idxType != "bigint") {
-                std::cerr << "Bery:Error [Line " << idxNode->line << "]: Array index must be an integer\n";
+
+            if (idxNode->indices.size() > (size_t)dimCount) {
+                std::cerr << "Bery:Error [Line " << idxNode->line << "]: Too many indices for array '" << idxNode->name << "'\n";
                 errors = true; 
-                 return "unknown";
+                return "unknown";
             }
-            return sym.type.substr(0, sym.type.find('['));
+
+            for (auto& index : idxNode->indices) {
+                std::string idxType = analyzeExpression(index.get());
+                if (idxType != "int" && idxType != "bigint") {
+                    std::cerr << "Bery:Error [Line " << idxNode->line << "]: Array index must be an integer\n";
+                    errors = true; 
+                    return "unknown";
+                }
+            }
+
+            std::string resultType = sym.type.substr(0, sym.type.find('['));
+            for (size_t i = 0; i < dimCount - idxNode->indices.size(); ++i) resultType += "[]";
+            return resultType;
         }
         default:
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown expression \n";

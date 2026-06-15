@@ -17,19 +17,27 @@ void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
 void CodeGen::genArrayDecl(ASTNode* node, std::ostream& out) {
    auto* decl = static_cast<ArrayDeclNode*>(node);
    std::string lt = llvmType(decl->elementType);
-   int resolvedSize = decl->size >= 0 ? decl->size : (int)decl->initializers.size();
-   std::string arrType = "[" + std::to_string(resolvedSize) + " x " + lt + "]";
+
+   std::string arrType = lt;
+   for (int i = decl->dimensions.size() - 1; i >= 0; --i) {
+      arrType = "[" + std::to_string(decl->dimensions[i]) + " x " + arrType + "]";
+   }
    
    std::string memReg = "%" + decl->name + "_" + std::to_string(++regCounter);
-   symTable.add(decl->name, {decl->elementType + "[]", false, !decl->initializers.empty(), decl->line, memReg, arrType});
+   std::string typeSig = decl->elementType;
+   for (size_t i = 0; i < decl->dimensions.size(); ++i) typeSig += "[]";
+   
+   symTable.add(decl->name, {typeSig, false, !decl->initializers.empty(), decl->line, memReg, arrType});
 
    out << "    " << memReg << " = alloca " << arrType << "\n";
    if (decl->initializers.empty()) return;
+   std::string flatPtr = newReg();
+   out << "    " << flatPtr << " = bitcast " << arrType << "* " << memReg << " to " << lt << "*\n";
 
    for (size_t i = 0; i < decl->initializers.size(); ++i) {
-       std::string valReg = genExpression(decl->initializers[i].get(), decl->elementType, out);
-       std::string ptrReg = newReg();
-       out << "    " << ptrReg << " = getelementptr " << arrType << ", " << arrType << "* " << memReg << ", i32 0, i32 " << i << "\n";
-       out << "    store " << lt << " " << valReg << ", " << lt << "* " << ptrReg << "\n";
+      std::string valReg = genExpression(decl->initializers[i].get(), decl->elementType, out);
+      std::string ptrReg = newReg();
+      out << "    " << ptrReg << " = getelementptr " << lt << ", " << lt << "* " << flatPtr << ", i32 " << i << "\n";
+      out << "    store " << lt << " " << valReg << ", " << lt << "* " << ptrReg << "\n";
    }
 }

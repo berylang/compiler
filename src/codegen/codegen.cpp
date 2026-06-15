@@ -9,6 +9,7 @@
 #include "../sema/symboltable.h"
 #include <fstream>
 #include <iomanip>
+#include <functional>
 
 CodeGen::CodeGen(ASTNode* root, SymbolTable& symTable)
    : root(root), symTable(symTable),regCounter(0), strCounter(0) {}
@@ -26,33 +27,62 @@ void CodeGen::generate(const std::string& outputPath) {
             std::string initVal = extractConstant(decl->value.get());
             
             symTable.get(decl->name).llvmRegister = "@" + decl->name;
+            symTable.get(decl->name).llvmAllocType = lt;             
             globalsOut << "@" << decl->name << " = global " << lt << " " << initVal << "\n";
-        } 
+        }
         else if (node->type == NodeType::ARRAY_DECL) {
             auto* decl = static_cast<ArrayDeclNode*>(node.get());
             symTable.get(decl->name).llvmRegister = "@" + decl->name;
             std::string lt = llvmType(decl->elementType);
-            int resolvedSize = decl->size >= 0 ? decl->size : (int)decl->initializers.size();
-            std::string arrType = "[" + std::to_string(resolvedSize) + " x " + lt + "]";
             
+            int totalSize = 1;
+            for (size_t i = 0; i < decl->dimensions.size(); ++i) {
+                totalSize *= decl->dimensions[i];
+            }
+            std::string arrType = lt;
+            for (int i = decl->dimensions.size() - 1; i >= 0; --i) {
+                arrType = "[" + std::to_string(decl->dimensions[i]) + " x " + arrType + "]";
+            }
+            symTable.get(decl->name).llvmAllocType = arrType;
             std::string initVal;
             if (decl->initializers.empty()) {
                 initVal = "zeroinitializer";
             } else {
-                initVal = "[";
-                for (size_t i = 0; i < decl->initializers.size(); ++i) {
-                    std::string elemVal = extractConstant(decl->initializers[i].get());
-                    initVal += lt + " " + elemVal;
-                    if (i + 1 < decl->initializers.size()) {
-                        initVal += ", ";
+                std::function<std::string(int, int)> buildNestedInit = 
+                [&](int dimIndex, int flatOffset) -> std::string {
+                    if (dimIndex == decl->dimensions.size() - 1) {
+                        std::string res = "[";
+                        int size = decl->dimensions[dimIndex];
+                        for (int i = 0; i < size; ++i) {
+                            int idx = flatOffset + i;
+                            std::string val = (idx < (int)decl->initializers.size()) ? extractConstant(decl->initializers[idx].get()) : "0";
+                            res += lt + " " + val;
+                            if (i + 1 < size) res += ", ";
+                        }
+                        res += "]";
+                        return res;
                     }
-                }
-                if (decl->initializers.size() < (size_t)resolvedSize) {
-                    for (size_t i = decl->initializers.size(); i < (size_t)resolvedSize; ++i) {
-                        initVal += ", " + lt + " 0";
+
+                    std::string res = "[";
+                    int size = decl->dimensions[dimIndex];
+                    int childFlatSize = 1;
+                    for (size_t i = dimIndex + 1; i < decl->dimensions.size(); ++i) {
+                        childFlatSize *= decl->dimensions[i];
                     }
-                }
-                initVal += "]";
+                    std::string childType = lt;
+                    for (int i = decl->dimensions.size() - 1; i > dimIndex; --i) {
+                        childType = "[" + std::to_string(decl->dimensions[i]) + " x " + childType + "]";
+                    }
+
+                    for (int i = 0; i < size; ++i) {
+                        res += childType + " " + buildNestedInit(dimIndex + 1, flatOffset + (i * childFlatSize));
+                        if (i + 1 < size) res += ", ";
+                    }
+                    res += "]";
+                    return res;
+                };
+
+                initVal = buildNestedInit(0, 0);
             }
             globalsOut << "@" << decl->name << " = global " << arrType << " " << initVal << "\n";
         }

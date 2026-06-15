@@ -32,8 +32,9 @@ class Parser {
     std::unique_ptr<ASTNode> parseLiteral();
     bool isArrayDecl();
     std::unique_ptr<ASTNode> parseArrayDecl();
+    void parseArrayInitializer(std::vector<std::unique_ptr<ASTNode>>& initializers);
     
-    //Expressions
+    //@expressions
     std::unique_ptr<ASTNode> parseExpression();
     std::unique_ptr<ASTNode> parsePrimary();
     std::unique_ptr<ASTNode> parsePostfix();
@@ -48,6 +49,8 @@ class Parser {
     std::unique_ptr<ASTNode> parseLogicalAnd();
     std::unique_ptr<ASTNode> parseLogicalOr();
     std::unique_ptr<ASTNode> parseTernary();
+    
+    //@blocks
     std::unique_ptr<ASTNode> parseStatement();
     std::unique_ptr<BlockNode> parseBlock();
     std::unique_ptr<ASTNode> parseIfStmt();

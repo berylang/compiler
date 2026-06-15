@@ -73,53 +73,60 @@ void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
 }
 
 void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
-   auto* decl = static_cast<ArrayDeclNode*>(node);
+    auto* decl = static_cast<ArrayDeclNode*>(node);
 
-   if (symbolTable.existsInCurrentScope(decl->name)) {
-       std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' already declared in this scope.\n";
-       errors = true;
-       return;
-   }
-    if (decl->size == 0) {
-       std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' size must be greater than 0.\n";
-       errors = true;
-       return;
-   }
-    if (decl->size < 0 && decl->initializers.empty()) {
-       std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' must have an initializer list.\n";
-       errors = true;
-       return;
-   }
-    if (decl->size >= 0 && decl->initializers.size() > (size_t)decl->size) {
-       std::cerr << "Bery:Error [Line "<< decl->line <<"]: initializer list count exceeds array size for '" << decl->name << "'. It should be in Declared size\n";
-       errors = true;
-       return;
-   }
+    if (symbolTable.existsInCurrentScope(decl->name)) {
+        std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' already declared.\n";
+        errors = true; return;
+    }
+
+    int totalSize = 1;
+    int inferredDim = -1;
+    for (size_t i = 0; i < decl->dimensions.size(); ++i) {
+        if (decl->dimensions[i] < 0) {
+            if (i != 0) {
+                std::cerr << "Bery:Error [Line "<< decl->line <<"]: Only the first dimension can be omitted.\n";
+                errors = true; return;
+            }
+            inferredDim = i;
+        } else if (decl->dimensions[i] == 0) {
+            std::cerr << "Bery:Error [Line "<< decl->line <<"]: Dimensions must be greater than 0.\n";
+            errors = true; return;
+        } else {
+            totalSize *= decl->dimensions[i];
+        }
+    }
+    if (inferredDim != -1) {
+        if (decl->initializers.empty()) {
+            std::cerr << "Bery:Error [Line "<< decl->line <<"]: Must have an initializer list if dimension is omitted.\n";
+            errors = true; return;
+        }
+        if (decl->initializers.size() % totalSize != 0) {
+            std::cerr << "Bery:Error [Line "<< decl->line <<"]: Initializer list size does not match multi-dimensional bounds.\n";
+            errors = true; return;
+        }
+        decl->dimensions[0] = decl->initializers.size() / totalSize;
+        totalSize *= decl->dimensions[0];
+    }
+
+    if (!decl->initializers.empty() && decl->initializers.size() > (size_t)totalSize) {
+        std::cerr << "Bery:Error [Line "<< decl->line <<"]: initializer list count exceeds array size.\n";
+        errors = true; return;
+    }
+
     for (auto& initVal : decl->initializers) {
         std::string exprType = typeChecker.analyzeExpression(initVal.get());
-
         if (exprType != "unknown" && exprType != decl->elementType) {
-            if (exprType == "null") {
-                if (decl->elementType != "string") {
-                    std::cerr << "Bery:Error [Line "<< decl->line <<"]: Cannot assign 'null' to non-reference type '" << decl->elementType << "'\n";
-                    errors = true;
-                    return;
-                }
-                continue;
-            }
             if (!(decl->elementType == "float" && exprType == "int") &&
-                !(decl->elementType == "float" && exprType == "double") &&
-                !(decl->elementType == "double" && exprType == "int") &&
-                !(decl->elementType == "double" && exprType == "float") &&
-                !(decl->elementType == "bigint" && exprType == "int")) {
-                    std::cerr << "Bery:Error [Line "<< decl->line <<"]: Type mismatch in array initialization for '"<<decl->name<<"' . Expected '"<<decl->elementType<<"', got '"<<exprType<<"' \n";
-                    errors = true;
-                    return;
-                }
+                !(decl->elementType == "double" && exprType == "int")) {
+                std::cerr << "Bery:Error [Line "<< decl->line <<"]: Type mismatch in array initialization.\n";
+                errors = true; return;
+            }
         }
-   }
-
-    symbolTable.add(decl->name, {decl->elementType + "[]", false, !decl->initializers.empty(), decl->line, "", ""});
+    }
+    std::string typeSignature = decl->elementType;
+    for (size_t i = 0; i < decl->dimensions.size(); ++i) typeSignature += "[]";
+    symbolTable.add(decl->name, {typeSignature, false, !decl->initializers.empty(), decl->line, "", ""});
 }
 
 void SemanticAnalyzer::analyzeBlock(ASTNode* node) { 

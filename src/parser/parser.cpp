@@ -160,11 +160,15 @@ std::unique_ptr<ASTNode> Parser::parsePrimary(){
     if (t.type == TokenType::TOKEN_IDENT) {
         advance();
         if (check(TokenType::TOKEN_LBRACKET)) {
-            advance(); 
-            auto indexExpr = parseExpression();
-            consume(TokenType::TOKEN_RBRACKET, "Expected ']' after array index");
-            return std::make_unique<IndexExprNode>(t.lexeme, std::move(indexExpr), t.line);
+            std::vector<std::unique_ptr<ASTNode>> indices;
+            while (check(TokenType::TOKEN_LBRACKET)) {
+                advance();
+                indices.push_back(parseExpression());
+                consume(TokenType::TOKEN_RBRACKET, "Expected ']' after array index");
+            }
+            return std::make_unique<IndexExprNode>(t.lexeme, std::move(indices), t.line);
         }
+        
         return std::make_unique<IdentNode>(t.lexeme, "", t.line);
     }
     if (t.type == TokenType::TOKEN_LPARAN) {
@@ -597,35 +601,46 @@ std::unique_ptr<ASTNode> Parser::parseArrayDecl() {
     std::string elementType = typeToken.lexeme;
     Token nameToken = consume(TokenType::TOKEN_IDENT, "Expected identifier");
     std::string name = nameToken.lexeme;
-    consume(TokenType::TOKEN_LBRACKET, "Expected '['");
 
-    int size = -1;
-    if (check(TokenType::TOKEN_INT_LIT)) {
-        Token sizeToken = advance();
-        size = std::stoi(sizeToken.lexeme);
+    std::vector<int> dimensions;
+    while (check(TokenType::TOKEN_LBRACKET)) {
+        advance();
+        if (check(TokenType::TOKEN_INT_LIT)) {
+            Token sizeToken = advance();
+            dimensions.push_back(std::stoi(sizeToken.lexeme));
+        } else {
+            dimensions.push_back(-1); 
+        }
+        consume(TokenType::TOKEN_RBRACKET, "Expected ']'");
     }
-    consume(TokenType::TOKEN_RBRACKET, "Expected ']'");
+
     std::vector<std::unique_ptr<ASTNode>> initializers;
     if (check(TokenType::TOKEN_EQUAL)) {
         advance(); 
         if (!check(TokenType::TOKEN_LBRACE)) {
-            std::cerr << "Bery:Error: Arrays must be initialized with list inside '{}' at line " << peek().line << "\n";
+            std::cerr << "Bery:Error: [Line " << peek().line << "]: Arrays must be initialized with list inside '{}'\n";
             errors = true;
             while (!isAtEnd() && !check(TokenType::TOKEN_SEMICOLON)) advance();
-            return std::make_unique<ArrayDeclNode>(elementType, name, size, std::move(initializers), nameToken.line);
+            return std::make_unique<ArrayDeclNode>(elementType, name, dimensions, std::move(initializers), nameToken.line);
         }
-        consume(TokenType::TOKEN_LBRACE, "Expected '{'");
-        if (!check(TokenType::TOKEN_RBRACE)) {
-            do {
-                initializers.push_back(parseExpression());
-            } while (!isAtEnd() && check(TokenType::TOKEN_COMMA) && (advance(), true));
-        }
-        consume(TokenType::TOKEN_RBRACE, "Expected '}'");
+        parseArrayInitializer(initializers);
     }
     consume(TokenType::TOKEN_SEMICOLON, "Expected ';'");
-    return std::make_unique<ArrayDeclNode>(elementType, name, size, std::move(initializers), nameToken.line);
+    return std::make_unique<ArrayDeclNode>(elementType, name, dimensions, std::move(initializers), nameToken.line);
 }
-
+void Parser::parseArrayInitializer(std::vector<std::unique_ptr<ASTNode>>& initializers) {
+    consume(TokenType::TOKEN_LBRACE, "Expected '{'");
+    if (!check(TokenType::TOKEN_RBRACE)) {
+        do {
+            if (check(TokenType::TOKEN_LBRACE)) {
+                parseArrayInitializer(initializers);
+            } else {
+                initializers.push_back(parseExpression());
+            }
+        } while (!isAtEnd() && check(TokenType::TOKEN_COMMA) && (advance(), true));
+    }
+    consume(TokenType::TOKEN_RBRACE, "Expected '}'");
+}
 bool Parser::hasErrors() {return errors;}
 
 void Parser::synchronize() {
