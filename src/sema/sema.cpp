@@ -42,7 +42,11 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
         analyzeIfStmt(node);
     else if (node->type == NodeType::WHILE_STMT)
         analyzeWhileStmt(node);
-    else if (node->type == NodeType::FUNC_DEF) 
+    else if (node->type == NodeType::DOWHILE_STMT)
+        analyzeDoWhileStmt(node);
+    else if (node->type == NodeType::FOR_STMT)
+        analyzeForStmt(node);
+    else if (node->type == NodeType::FUNC_DEF)
         analyzeFuncDef(node);
     else if (node->type == NodeType::RETURN_STMT) 
         analyzeReturnStmt(node);
@@ -255,6 +259,39 @@ void SemanticAnalyzer::analyzeDoWhileStmt(ASTNode* node){
     analyzeBlock(dowhilestmt->body.get());
     loopDepth--;
     loopOrSwitchDepth--;
+}
+
+void SemanticAnalyzer::analyzeForStmt(ASTNode* node) {
+    auto* forStmt = static_cast<ForStmtNode*>(node);
+
+    symbolTable.pushScope();
+
+    if (forStmt->init) {
+        if (forStmt->init->type == NodeType::VAR_DECL)
+            analyzeVarDecl(forStmt->init.get());
+        else
+            typeChecker.analyzeExpression(forStmt->init.get());
+    }
+
+    if (forStmt->condition) {
+        std::string conditionType = typeChecker.analyzeExpression(forStmt->condition.get());
+        if (conditionType != "bool" && conditionType != "unknown") {
+            std::cerr << "Bery:Error [Line " << forStmt->line << "]: 'for' condition must evaluate to 'bool'\n";
+            errors = true;
+        }
+    }
+
+    if (forStmt->increment)
+        typeChecker.analyzeExpression(forStmt->increment.get());
+
+    loopOrSwitchDepth++;
+    loopDepth++;
+    for (auto& stmt : forStmt->body->statements)
+        analyzeNode(stmt.get());
+    loopDepth--;
+    loopOrSwitchDepth--;
+
+    symbolTable.popScope();
 }
 
 bool SemanticAnalyzer::hasErrors() { return errors; }

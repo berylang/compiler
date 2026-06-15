@@ -60,6 +60,7 @@ class Parser {
 
     std::unique_ptr<ASTNode> parseWhileStmt();
     std::unique_ptr<ASTNode> parseDoWhileStmt();
+    std::unique_ptr<ASTNode> parseForStmt();
     std::unique_ptr<ASTNode> parseContinueStmt();
     std::unique_ptr<ASTNode> parsePassStmt();
 

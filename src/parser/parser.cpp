@@ -407,6 +407,9 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
     if(check(TokenType::TOKEN_DOWHILE)){
         return parseDoWhileStmt();
     }
+    if(check(TokenType::TOKEN_FOR)){
+        return parseForStmt();
+    }
     bool isConst = false;
     if(check(TokenType::TOKEN_CONST)){
         advance();
@@ -587,6 +590,67 @@ std::unique_ptr<ASTNode> Parser::parseDoWhileStmt(){
     consume(TokenType::TOKEN_RPARAN, "Expected ')' after condition");
     consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after condition-end");
     return std::make_unique<DoWhileStmtNode>(std::move(condition), std::move(body), line);
+}
+
+std::unique_ptr<ASTNode> Parser::parseForStmt() {
+    advance();
+    int line = previous().line;
+    consume(TokenType::TOKEN_LPARAN, "Expected '(' after 'for'");
+
+    if (isTypeToken(peek().type)) {
+        Token typeToken = advance();
+        Token nameToken = consume(TokenType::TOKEN_IDENT, "Expected identifier in for-loop");
+
+        std::unique_ptr<ASTNode> init = nullptr;
+        if (check(TokenType::TOKEN_EQUAL)) {
+            advance();
+            auto value = parseExpression();
+            init = std::make_unique<VarDeclNode>(
+                typeToken.lexeme, nameToken.lexeme, std::move(value), nameToken.line, false);
+        } else {
+            init = std::make_unique<VarDeclNode>(
+                typeToken.lexeme, nameToken.lexeme, nullptr, nameToken.line, false);
+        }
+        consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after for-loop initializer");
+
+        std::unique_ptr<ASTNode> condition = nullptr;
+        if (!check(TokenType::TOKEN_SEMICOLON)) {
+            condition = parseExpression();
+        }
+        consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after for-loop condition");
+
+        std::unique_ptr<ASTNode> increment = nullptr;
+        if (!check(TokenType::TOKEN_RPARAN)) {
+            increment = parseExpression();
+        }
+        consume(TokenType::TOKEN_RPARAN, "Expected ')' after for-loop");
+        consume(TokenType::TOKEN_LBRACE, "Expected '{' before for-loop body");
+        auto body = parseBlock();
+        return std::make_unique<ForStmtNode>(
+            std::move(init), std::move(condition), std::move(increment), std::move(body), line);
+    }
+
+    std::unique_ptr<ASTNode> init = nullptr;
+    if (!check(TokenType::TOKEN_SEMICOLON)) {
+        init = parseExpression();
+    }
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after for-loop initializer");
+
+    std::unique_ptr<ASTNode> condition = nullptr;
+    if (!check(TokenType::TOKEN_SEMICOLON)) {
+        condition = parseExpression();
+    }
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after for-loop condition");
+
+    std::unique_ptr<ASTNode> increment = nullptr;
+    if (!check(TokenType::TOKEN_RPARAN)) {
+        increment = parseExpression();
+    }
+    consume(TokenType::TOKEN_RPARAN, "Expected ')' after for-loop");
+    consume(TokenType::TOKEN_LBRACE, "Expected '{' before for-loop body");
+    auto body = parseBlock();
+    return std::make_unique<ForStmtNode>(
+        std::move(init), std::move(condition), std::move(increment), std::move(body), line);
 }
 
 Token Parser::advance() {if (!isAtEnd()) current++;
