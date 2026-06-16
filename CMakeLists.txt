@@ -13,6 +13,8 @@ add_executable(bery
     src/codegen/irgen/declarations.cpp
     src/codegen/irgen/expressions.cpp
     src/codegen/irgen/controlflow.cpp
+    src/importer/mangler.cpp
+    src/importer/importer.cpp
 )
 
 target_include_directories(bery PRIVATE src)

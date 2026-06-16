@@ -69,5 +69,6 @@ class Parser {
     std::unique_ptr<ASTNode> parseReturnStmt();
 
     std::unique_ptr<ASTNode> parseEnumDecl();
+    std::unique_ptr<ASTNode> parseImportDecl();
 };
 

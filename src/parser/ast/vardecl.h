@@ -2,6 +2,7 @@
 #include "node.h"
 #include <string>
 #include <memory>
+#include <vector>
 
 struct VarDeclNode : public ASTNode {
     std::string varType;

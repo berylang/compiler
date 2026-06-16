@@ -10,6 +10,7 @@
 #include "ast/controlflow.h"
 #include "ast/functions.h"
 #include "ast/blocknode.h"
+#include "ast/importer.h"
 
 Parser::Parser(const std::vector<Token>& tokens)
     : tokens(tokens), current(0), errors(false) {}
@@ -23,7 +24,9 @@ std::unique_ptr<ASTNode> Parser::parse() {
                 continue;
             } else if (check(TokenType::TOKEN_ENUM)) {
                 program->globals.push_back(parseEnumDecl());
-            } 
+            } else if (check(TokenType::TOKEN_IMPORT)) {
+                program->globals.push_back(parseImportDecl());
+            }
             else {
                 bool isConst = false;
                 if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
@@ -420,6 +423,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
     if (check(TokenType::TOKEN_ENUM)) {
         return parseEnumDecl();
     }
+    
 
     if(isTypeToken(peek().type)){
         if(!isConst && isArrayDecl())return parseArrayDecl();
@@ -849,4 +853,27 @@ std::unique_ptr<ASTNode> Parser::parseEnumDecl() {
     consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after enum declaration");
 
     return std::make_unique<EnumDeclNode>(nameTok.lexeme, std::move(values), line);
+}
+
+std::unique_ptr<ASTNode> Parser::parseImportDecl() {
+    advance();
+    int line = previous().line;
+
+    Token startTok = consume(TokenType::TOKEN_IDENT, "Expected module name after 'import'");
+    std::string fullName = startTok.lexeme;
+
+    while (check(TokenType::TOKEN_DOT)) {
+        advance(); 
+        Token nextIdent = consume(TokenType::TOKEN_IDENT, "Expected identifier after '.'");
+        fullName += "." + nextIdent.lexeme;
+    }
+
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after import statement");
+    std::string filePath = fullName;
+    for (char& c : filePath) {
+        if (c == '.') c = '/';
+    }
+    filePath += ".bry";
+
+    return std::make_unique<ImportNode>(fullName, filePath, line);
 }

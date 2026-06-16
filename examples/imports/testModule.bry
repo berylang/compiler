@@ -1,0 +1,12 @@
+
+func display() {
+    int a = 10;
+}
+
+func myFunc(int a) -> int {
+    return a;
+}
+
+run {
+    display();
+}
