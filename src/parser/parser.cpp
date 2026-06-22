@@ -11,6 +11,7 @@
 #include "ast/functions.h"
 #include "ast/blocknode.h"
 #include "ast/importer.h"
+#include "ast/classdeclare.h"
 
 Parser::Parser(const std::vector<Token>& tokens)
     : tokens(tokens), current(0), errors(false) {}
@@ -26,6 +27,8 @@ std::unique_ptr<ASTNode> Parser::parse() {
                 program->globals.push_back(parseEnumDecl());
             } else if (check(TokenType::TOKEN_IMPORT)) {
                 program->globals.push_back(parseImportDecl());
+            } else if (check(TokenType::TOKEN_CLASS)) {
+                program->globals.push_back(parseClassDef());
             }
             else {
                 bool isConst = false;
@@ -877,3 +880,77 @@ std::unique_ptr<ASTNode> Parser::parseImportDecl() {
 
     return std::make_unique<ImportNode>(fullName, filePath, line);
 }
+
+std::unique_ptr<ASTNode> Parser::parseClassDef() {
+    advance();
+    int line = previous().line;
+
+    Token nameToken = consume (TokenType::TOKEN_IDENT, "Expected class name");
+        
+    consume (TokenType::TOKEN_LBRACE, "Expected '{' after class name");
+        
+        
+    auto cls = std::make_unique<ClassDeclNode>(nameToken.lexeme, line);
+    
+    while(!isAtEnd() && !check(TokenType::TOKEN_RBRACE)){
+        if(check(TokenType::TOKEN_ATTRIBUTES)){
+            parseAttributesSection(cls.get());
+        }
+        else if(check(TokenType::TOKEN_METHODS)){
+            parseMethodsSection(cls.get());
+        }
+        else{
+            std::cerr<< "Bery:Error [Line "<< peek().line<< "]: Expected attributes or methods section\n";
+            errors = true;
+            throw ParseError();
+        }
+    }
+    consume (TokenType::TOKEN_RBRACE, "Expected '}' after class name");
+    return cls;
+}
+
+void Parser::parseAttributesSection(ClassDeclNode* cls){
+    consume(TokenType::TOKEN_ATTRIBUTES, "Expected attributes section");
+    consume(TokenType::TOKEN_LBRACKET, "Expected '[' after attributes]");
+    consume(TokenType::TOKEN_IDENT, "Expected identifier");
+    consume(TokenType::TOKEN_RBRACKET, "Expected ']' after identifier");
+    consume(TokenType::TOKEN_DCOLON, "Expected '::' after methods");
+
+    while(!isAtEnd() && !check(TokenType::TOKEN_METHODS) && !check(TokenType::TOKEN_RBRACE)){
+        bool isConst = false;
+
+        if (check(TokenType::TOKEN_CONST)) {
+            advance();
+            isConst = true;
+        }
+
+        if (!isTypeToken(peek().type)) {
+            std::cerr << "Bery:Error [Line "<< peek().line<< "]: Expected attribute declaration\n";
+            errors = true;
+            throw ParseError();
+        }
+
+        auto fields = parseVarDecl(isConst);
+
+        for (auto& field : fields) {
+            cls->attributes.push_back(std::move(field));
+        }
+    }
+
+}
+
+void Parser::parseMethodsSection(ClassDeclNode* cls){
+    consume(TokenType::TOKEN_METHODS, "Expected methods section");
+    consume(TokenType::TOKEN_DCOLON, "Expected '::' after methods");
+
+    while(!isAtEnd() && !check(TokenType::TOKEN_RBRACE)){
+        if (!check(TokenType::TOKEN_FUNC)) {
+            std::cerr<< "Bery:Error [Line "<< peek().line<< "]: Expected method definition\n";
+            errors = true;
+            throw ParseError();
+        }
+
+        cls->methods.push_back(parseFunctionDef());
+    }
+}
+

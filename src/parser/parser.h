@@ -1,6 +1,7 @@
 #pragma once
 #include "ast/node.h"
 #include "ast/blocknode.h"
+#include "ast/classdeclare.h"
 #include "../lexer/token.h"
 #include <vector>
 #include <memory>
@@ -70,5 +71,9 @@ class Parser {
 
     std::unique_ptr<ASTNode> parseEnumDecl();
     std::unique_ptr<ASTNode> parseImportDecl();
+
+    std::unique_ptr<ASTNode> parseClassDef();
+    void parseAttributesSection(ClassDeclNode* cls);
+    void parseMethodsSection(ClassDeclNode* cls);
 };
 

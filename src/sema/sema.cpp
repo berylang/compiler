@@ -6,6 +6,7 @@
 #include <iostream>
 #include "../parser/ast/blocknode.h"
 #include "../parser/ast/controlflow.h"
+#include "../parser/ast/classdeclare.h"
 
 SemanticAnalyzer::SemanticAnalyzer(ASTNode* root)
    : root(root), errors(false), typeChecker(symbolTable, functions, errors) {}
@@ -23,12 +24,17 @@ void SemanticAnalyzer::analyze() {
         else if (node->type == NodeType::ENUM_DECL) {
             analyzeEnumDecl(node.get());
         }
+        else if (node->type == NodeType::CLASS_DEF) {
+            analyzeEnumDecl(node.get());
+        }
     }
+
     for (auto& node : program->globals)
-        if (node->type != NodeType::ENUM_DECL) {
+        if (node->type != NodeType::ENUM_DECL && node->type != NodeType::CLASS_DEF) {
             analyzeNode(node.get());
         }
     if (program->runBlock) {
+
         symbolTable.pushScope();
         for (auto& node : program->runBlock->statements)
             analyzeNode(node.get());
@@ -64,6 +70,8 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
         analyzeForStmt(node);
     else if (node->type == NodeType::FOR_IN_STMT) 
         analyzeForInStmt(node);
+    else if(node->type == NodeType::CLASS_DEF)
+        analyzeClassDef(node);
 } 
 
 void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
@@ -395,4 +403,27 @@ void SemanticAnalyzer::analyzeEnumDecl(ASTNode* node) {
             symbolTable.add(mangledName, {"int", true, true, enumDecl->line, "", ""});
         }
     }
+}
+
+void SemanticAnalyzer::analyzeClassDef(ASTNode* node) {
+    auto* cls = static_cast<ClassDeclNode*>(node);
+
+    if (symbolTable.existsInCurrentScope(cls->name)) {
+        std::cerr << "Bery:Error [Line " << cls->line<< "]: Class '" << cls->name<< "' already declared.\n";
+        errors = true;
+        return;
+    }
+
+    symbolTable.add(cls->name,{"class", true, true, cls->line, "", "", 0});
+    symbolTable.pushScope();
+
+    for (auto& attribute : cls->attributes) {
+        analyzeNode(attribute.get());
+    }
+
+    for (auto& method : cls->methods) {
+        analyzeNode(method.get());
+    }
+
+    symbolTable.popScope();
 }

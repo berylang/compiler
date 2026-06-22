@@ -31,7 +31,10 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"enum", TokenType::TOKEN_ENUM},
     {"for", TokenType::TOKEN_FOR},
     {"in", TokenType::TOKEN_IN},
-    {"import", TokenType::TOKEN_IMPORT}
+    {"import", TokenType::TOKEN_IMPORT},
+    {"class", TokenType::TOKEN_CLASS},
+    {"attributes", TokenType::TOKEN_ATTRIBUTES},
+    {"methods", TokenType::TOKEN_METHODS}
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}
@@ -294,8 +297,15 @@ void Lexer::scanToken() {
             }
             break;
         case ':':
+            if(peek()==':'){
+                advance();
+                tokens.push_back({TokenType::TOKEN_DCOLON, "::", line});
+                return;
+            }
+    
             tokens.push_back({TokenType::TOKEN_COLON, ":", line});
             break;
+            
         case '?':
             tokens.push_back({TokenType::TOKEN_QUESTION, "?", line});
             break;
