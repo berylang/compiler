@@ -6,7 +6,114 @@
 #include <iomanip>
 #include <sstream>
 
+std::string CodeGen::inferType(ASTNode* node) {
+    if (!node) return "void";
+    switch (node->type) {
+        case NodeType::INT_LIT: return "int";
+        case NodeType::DECIMAL_LIT: return "double";
+        case NodeType::BOOL_LIT:return "bool";
+        case NodeType::CHAR_LIT:  return "char";
+        case NodeType::STRING_LIT:return "string";
+        case NodeType::IDENT: {
+            auto* ident = static_cast<IdentNode*>(node);
+            return symTable.get(ident->name).type;
+        }
+        case NodeType::CAST_EXPR: {
+            auto* cast = static_cast<CastExprNode*>(node);
+            return cast->targetType;
+        }
+        case NodeType::CALL_EXPR: {
+            auto* call = static_cast<CallExprNode*>(node);
+            if (functions.count(call->callee))
+                return functions[call->callee].returnType;
+            return "void";
+        }
+        case NodeType::BINARY_EXPR: {
+            auto* bin = static_cast<BinaryExprNode*>(node);
+            std::string lt = inferType(bin->left.get());
+            std::string rt = inferType(bin->right.get());
+            if (lt == "double" || rt == "double") return "double";
+            if (lt == "float"  || rt == "float")  return "float";
+            if (lt == "bigint" || rt == "bigint") return "bigint";
+            return lt;
+        }
+        case NodeType::TERNARY_EXPR: {
+            auto* tern = static_cast<TernaryExprNode*>(node);
+            return inferType(tern->trueExpr.get());
+        }
+        case NodeType::GROUPED_EXPR: {
+            auto* grp = static_cast<GroupedExprNode*>(node);
+            return inferType(grp->expression.get());
+        }
+        default: return "int";
+    }
+}
 
+std::string CodeGen::genBREPrintCall(ASTNode* node, std::ostream& out) {
+    auto* call = static_cast<CallExprNode*>(node);
+    const std::string& callee = call->callee;
+
+    auto emitPrint = [&](ASTNode* arg) {
+        std::string argType = inferType(arg);
+        std::string sym, llvmT;
+        if      (argType == "int")    { sym = "__bery_print_int";    llvmT = "i32"; }
+        else if (argType == "bigint") { sym = "__bery_print_bigint"; llvmT = "i64"; }
+        else if (argType == "float")  { sym = "__bery_print_float";  llvmT = "float"; }
+        else if (argType == "double") { sym = "__bery_print_double"; llvmT = "double"; }
+        else if (argType == "bool")   { sym = "__bery_print_bool";   llvmT = "i1"; }
+        else if (argType == "char")   { sym = "__bery_print_char";   llvmT = "i8"; }
+        else if (argType == "string") { sym = "__bery_print_string"; llvmT = "i8*"; }
+        else                          { sym = "__bery_print_int";    llvmT = "i32"; }
+
+        emitBREDecl("declare void @" + sym + "(" + llvmT + ")", sym);
+        std::string argReg = genExpression(arg, argType, out);
+        out << "    call void @" << sym << "(" << llvmT << " " << argReg << ")\n";
+    };
+
+    if (callee == "print") {
+        emitPrint(call->arguments[0].get());
+        return "0";
+    }
+
+    if (callee == "println") {
+        if (!call->arguments.empty()) {
+            emitPrint(call->arguments[0].get());
+        }
+        emitBREDecl("declare void @bery_println()", "bery_println");
+        out << "    call void @bery_println()\n";
+        return "0";
+    }
+    struct InputMapping {
+        const char* callee;
+        const char* sym;
+        const char* llvmRet;
+    };
+    static const InputMapping inputMap[] = {
+        {"inputInt",    "__bery_input_int",    "i32"},
+        {"inputBigInt", "__bery_input_bigint", "i64"},
+        {"inputFloat",  "__bery_input_float",  "float"},
+        {"inputDouble", "__bery_input_double", "double"},
+        {"inputBool",   "__bery_input_bool",   "i1"},
+        {"inputChar",   "__bery_input_char",   "i8"},
+        {"inputString", "bery_input",          "i8*"},
+    };
+
+    for (auto& m : inputMap) {
+        if (callee == m.callee) {
+            emitBREDecl(
+                std::string("declare ") + m.llvmRet + " @" + m.sym + "(i8*)",
+                m.sym
+            );
+            std::string promptReg = genExpression(call->arguments[0].get(), "string", out);
+            std::string resReg = newReg();
+            out << "    " << resReg << " = call " << m.llvmRet
+                << " @" << m.sym << "(i8* " << promptReg << ")\n";
+            return resReg;
+        }
+    }
+
+    return "0";
+}
 std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out) {
     if(!node){return "0";}
     if (node->type == NodeType::NULL_LIT) {return "null";}
@@ -485,6 +592,14 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
     }
     if (node->type == NodeType::CALL_EXPR) {
         auto* call = static_cast<CallExprNode*>(node);
+
+        static const std::unordered_set<std::string> brePrintFns = {
+            "print", "println", "inputInt", "inputBigInt", "inputFloat",
+            "inputDouble", "inputBool", "inputChar", "inputString"
+        };
+        if (brePrintFns.count(call->callee)) {
+            return genBREPrintCall(node, out);
+        }
         CodeGenFunctionSignature& sig = functions[call->callee];
         
         std::string argsStr = "";

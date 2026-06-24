@@ -1,0 +1,53 @@
+--!
+
+_core.bry 
+
+Bery Standard Library Core Bridge
+this file is the Bery language side declaration of all BRE extern symbols.
+
+@todo: add the 'extern' keyword first and then comment-out the following block. as now it's not supported yet.
+
+
+!--
+
+--- RUNTIME LIFECYCLE
+extern func bery_runtime_startup();
+extern func bery_runtime_shutdown();
+
+--- PRINT APIs
+extern func print_int(int value);
+--- extern func print_bigint(bigint value);
+--- extern func print_float(float value);
+--- extern func print_double(double value);
+--- extern func print_bool(bool value);
+--- extern func print_char(char value);
+--- extern func print_string(string value);
+--- extern func println();
+
+--- INPUT API
+--- @todo: add more later, as it only have string now.
+
+--- extern string input(string prompt);
+
+
+--- GC ROOTS (Only for compiler);
+--- extern func bery_gc_push_root(func** slot);
+--- extern func bery_gc_pop_root();
+
+--- STRING RUNTIME
+--- extern string bery_string_from_literal(string literal);
+--- extern string bery_string_concat(string a, string b);
+--- extern bool bery_string_equals(string a, string b);
+--- extern int bery_string_length(string s);
+--- extern string bery_string_substring(string s, int start, int end);
+
+--- ARRAY RUNTIME (for dynamic arrrays);
+--- extern array bery_array_new(int initialCapacity);
+--- extern func bery_array_push(array arr, any element);
+--- extern any bery_array_pop(array arr);
+--- extern func bery_array_insert(array arr, int index, any element);
+--- extern func bery_array_remove(array arr, int index);
+--- extern any bery_array_get(array arr, int index);
+--- extern int bery_array_length(array arr);
+
+run {}

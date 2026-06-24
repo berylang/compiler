@@ -3,6 +3,7 @@
 #include "../parser/ast/literals.h"
 #include "../parser/ast/functions.h"
 #include <iostream>
+#include <unordered_set>
 
 TypeChecker::TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag) 
     : symbolTable(symTable), functions(funcs), errors(errorsFlag) {}
@@ -291,6 +292,36 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
         }
         case NodeType::CALL_EXPR: {
             auto* call = static_cast<CallExprNode*>(node);
+
+            static const std::unordered_set<std::string> builtinIO = {
+                "print", "println",
+                "inputInt", "inputBigInt", "inputFloat",
+                "inputDouble", "inputBool", "inputChar", "inputString"
+            };
+            if (builtinIO.count(call->callee)) {
+                if (call->callee == "print" && call->arguments.size() != 1) {
+                    std::cerr << "Bery:Error [Line " << call->line << "]: print() expects exactly 1 argument\n";
+                    errors = true;
+                }
+                if (call->callee == "println" && call->arguments.size() > 1) {
+                    std::cerr << "Bery:Error [Line " << call->line << "]: println() expects 0 or 1 argument\n";
+                    errors = true;
+                }
+                if (call->callee != "print" && call->callee != "println") {
+                    if (call->arguments.size() != 1) {
+                        std::cerr << "Bery:Error [Line " << call->line << "]: " << call->callee << "() expects exactly 1 argument\n";
+                        errors = true;
+                    }
+                }
+                if (call->callee == "inputInt")    return "int";
+                if (call->callee == "inputBigInt") return "bigint";
+                if (call->callee == "inputFloat")  return "float";
+                if (call->callee == "inputDouble") return "double";
+                if (call->callee == "inputBool")   return "bool";
+                if (call->callee == "inputChar")   return "char";
+                if (call->callee == "inputString") return "string";
+                return "void";
+            }
             
             if (functions.find(call->callee) == functions.end()) {
                 std::cerr << "Bery:Error [Line " << call->line << "]: Undefined function '" << call->callee << "'\n";

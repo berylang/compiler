@@ -26,6 +26,8 @@ std::unique_ptr<ASTNode> Parser::parse() {
                 program->globals.push_back(parseEnumDecl());
             } else if (check(TokenType::TOKEN_IMPORT)) {
                 program->globals.push_back(parseImportDecl());
+            } else if (check(TokenType::TOKEN_EXTERN)) {
+                program->globals.push_back(parseExternDecl());
             }
             else {
                 bool isConst = false;
@@ -876,4 +878,33 @@ std::unique_ptr<ASTNode> Parser::parseImportDecl() {
     filePath += ".bry";
 
     return std::make_unique<ImportNode>(fullName, filePath, line);
+}
+
+std::unique_ptr<ASTNode> Parser::parseExternDecl() {
+    int ln = peek().line;
+    advance();
+
+    consume(TokenType::TOKEN_FUNC, "Expected 'func' after 'extern'.");
+    Token nameToken = consume(TokenType::TOKEN_IDENT, "Expected function name after 'func'.");
+    consume(TokenType::TOKEN_LPARAN, "Expected '(' after function name.");
+
+    std::vector<std::pair<std::string, std::string>> params;
+
+    if(!check(TokenType::TOKEN_RPARAN)){
+        do {
+            Token typeTok = advance();
+            Token nameTok = consume(TokenType::TOKEN_IDENT, "Expected parameter name");
+            params.push_back({typeTok.lexeme, nameTok.lexeme});
+        } while (!isAtEnd() && check(TokenType::TOKEN_COMMA) && (advance(), true));
+    }
+    consume(TokenType::TOKEN_RPARAN, "Expected ')' after extern parameters");
+
+    std::string returnType = "void";
+    if (check(TokenType::TOKEN_ARROW)) {
+        advance();
+        returnType = advance().lexeme;
+    }
+
+    consume(TokenType::TOKEN_SEMICOLON, "Expected ';' after extern declaration");
+    return std::make_unique<ExternDeclNode>(nameToken.lexeme, returnType, std::move(params), ln);
 }

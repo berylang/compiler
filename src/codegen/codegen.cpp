@@ -15,11 +15,20 @@
 CodeGen::CodeGen(ASTNode* root, SymbolTable& symTable)
    : root(root), symTable(symTable),regCounter(0), strCounter(0) {}
 
+
+void CodeGen::emitBREDecl(const std::string& decl, const std::string& key) {
+    if (declaredExterns.count(key)) return;
+    declaredExterns.insert(key);
+    breDecls << decl << "\n";
+}
+
 void CodeGen::generate(const std::string& outputPath) {
     auto* program = static_cast<ProgramNode*>(root);
     
     std::ostringstream globalsOut;
     globalsOut << "declare double @llvm.pow.f64(double, double)\n";
+    globalsOut << "declare void @bery_runtime_startup()\n";
+    globalsOut << "declare void @bery_runtime_shutdown()\n";
 
     for (auto& node : program->globals) {
         if (node->type == NodeType::FUNC_DEF) {
@@ -30,6 +39,22 @@ void CodeGen::generate(const std::string& outputPath) {
             functions[func->name] = sig;
             
             genFuncDef(node.get(), globalsOut);
+        }
+        else if (node->type == NodeType::EXTERN_DECL) {
+            auto* ext = static_cast<ExternDeclNode*>(node.get());
+            CodeGenFunctionSignature sig;
+            sig.returnType = ext->returnType;
+
+            std::string decl = "declare " + llvmType(ext->returnType) + " @" + ext->name + "(";
+            for (size_t i = 0; i < ext->parameters.size(); ++i) {
+                sig.paramTypes.push_back(ext->parameters[i].first);
+                decl += llvmType(ext->parameters[i].first);
+                if (i + 1 < ext->parameters.size()) decl += ", ";
+            }
+            decl += ")";
+
+            functions[ext->name] = sig;
+            globalsOut << decl << "\n";
         }
     }
 
@@ -118,6 +143,7 @@ void CodeGen::generate(const std::string& outputPath) {
     std::ostringstream body;
     body << "\ndefine i32 @main() {\n";
     body << "entry:\n";
+    body << "    call void @bery_runtime_startup()\n";
 
     if (program->runBlock) {
         symTable.pushScope();
@@ -126,6 +152,7 @@ void CodeGen::generate(const std::string& outputPath) {
         }
         symTable.popScope();
     }
+    body << "    call void @bery_runtime_shutdown()\n";
     body << "    br label %main_end\n";
     body << "\nmain_end:\n";
     body << "    ret i32 0\n";
@@ -133,6 +160,7 @@ void CodeGen::generate(const std::string& outputPath) {
 
     std::ofstream out(outputPath);
     out << globalsOut.str();
+    out << breDecls.str();
     out << globalStrings.str() << "\n";
     out << body.str();
 }

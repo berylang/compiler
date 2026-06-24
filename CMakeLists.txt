@@ -2,6 +2,20 @@ cmake_minimum_required(VERSION 3.20)
 project(BeryCompiler)
 set(CMAKE_CXX_STANDARD 17)
 
+set(BRE_SOURCES
+    src/bre/src/bery_runtime.cpp
+    src/bre/src/bery_alloc.cpp
+    src/bre/src/bery_gc_roots.cpp
+    src/bre/src/bery_type_registry.cpp
+    src/bre/src/bery_gc.cpp
+    src/bre/src/bery_string.cpp
+    src/bre/src/bery_array.cpp
+    src/bre/src/bery_native.cpp
+)
+
+add_library(bre STATIC ${BRE_SOURCES})
+target_include_directories(bre PRIVATE src)
+
 add_executable(bery
     src/main.cpp
     src/lexer/lexer.cpp
@@ -18,3 +32,7 @@ add_executable(bery
 )
 
 target_include_directories(bery PRIVATE src)
+target_link_libraries(bery PRIVATE bre)
+
+install(TARGETS bre ARCHIVE DESTINATION lib)
+install(TARGETS bery RUNTIME DESTINATION bin)
