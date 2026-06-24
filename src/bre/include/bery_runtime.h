@@ -16,5 +16,5 @@ extern BeryRuntimeState g_beryRuntime;
 
 extern "C" {
     void bery_runtime_startup();
-    void bery_rutnime_shutdown();
+    void bery_runtime_shutdown();
 }

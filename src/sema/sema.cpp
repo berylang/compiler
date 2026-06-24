@@ -19,7 +19,13 @@ void SemanticAnalyzer::analyze() {
             sig.returnType = func->returnType;
             for (auto& p : func->parameters) sig.paramTypes.push_back(p.first);
             functions[func->name] = sig;
-        } 
+        } else if (node->type == NodeType::EXTERN_DECL) {
+            auto* ext = static_cast<ExternDeclNode*>(node.get());
+            FunctionSignature sig;
+            sig.returnType = ext->returnType;
+            for (auto& p : ext->parameters) sig.paramTypes.push_back(p.first);
+            functions[ext->name] = sig;
+        }
         else if (node->type == NodeType::ENUM_DECL) {
             analyzeEnumDecl(node.get());
         }
@@ -58,6 +64,7 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
     else if (node->type == NodeType::CONTINUE_STMT)
         analyzeContinueStmt(node);
     else if (node->type == NodeType::PASS_STMT){}
+    else if (node->type == NodeType::EXTERN_DECL){}
     else if (node->type == NodeType::ENUM_DECL) 
         analyzeEnumDecl(node);
     else if (node->type == NodeType::FOR_STMT) 

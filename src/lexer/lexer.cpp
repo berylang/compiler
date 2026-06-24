@@ -31,7 +31,8 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"enum", TokenType::TOKEN_ENUM},
     {"for", TokenType::TOKEN_FOR},
     {"in", TokenType::TOKEN_IN},
-    {"import", TokenType::TOKEN_IMPORT}
+    {"import", TokenType::TOKEN_IMPORT}, 
+    {"extern", TokenType::TOKEN_EXTERN}
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}

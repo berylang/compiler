@@ -1,0 +1,46 @@
+
+extern func __bery_print_int(int value);
+extern func __bery_print_bigint(bigint value);
+extern func __bery_print_float(float value);
+extern func __bery_print_double(double value);
+extern func __bery_print_bool(bool value);
+extern func __bery_print_char(char value);
+extern func __bery_print_string(string value);
+extern func bery_println();
+
+extern func __bery_input_int(string prompt) -> int;
+extern func __bery_input_bigint(string prompt) -> bigint;
+extern func __bery_input_float(string prompt) -> float;
+extern func __bery_input_double(string prompt) -> double;
+extern func __bery_input_bool(string prompt) -> bool;
+extern func __bery_input_char(string prompt) -> char;
+extern func bery_input(string prompt) -> string;
+
+
+func inputInt(string prompt) -> int {
+    return __bery_input_int(prompt);
+}
+
+func inputBigInt(string prompt) -> bigint {
+    return __bery_input_bigint(prompt);
+}
+
+func inputFloat(string prompt) -> float {
+    return __bery_input_float(prompt);
+}
+
+func inputDouble(string prompt) -> double {
+    return __bery_input_double(prompt);
+}
+
+func inputBool(string prompt) -> bool {
+    return __bery_input_bool(prompt);
+}
+
+func inputChar(string prompt) -> char {
+    return __bery_input_char(prompt);
+}
+
+func inputString(string prompt) -> string {
+    return bery_input(prompt);
+}

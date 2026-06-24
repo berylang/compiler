@@ -3,13 +3,14 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include "../parser/ast/node.h"
 #include "../sema/symboltable.h"
 
 
 struct CodeGenFunctionSignature {
-    std::string returnType;
-    std::vector<std::string> paramTypes;
+   std::string returnType;
+   std::vector<std::string> paramTypes;
 };
 
 class CodeGen {
@@ -23,6 +24,8 @@ private:
    int strCounter = 0;
    SymbolTable& symTable;
    std::ostringstream globalStrings;
+   std::ostringstream breDecls;
+   std::unordered_set<std::string> declaredExterns;
    std::vector<std::string> breakTracker;
    std::vector<std::string> continueTracker;
    std::unordered_map<std::string, CodeGenFunctionSignature> functions;
@@ -32,6 +35,7 @@ private:
    std::string newReg();
    std::string llvmType(const std::string& berryType);
    std::string escapeLLVMString(const std::string& str);
+   void emitBREDecl(const std::string& decl, const std::string& key);
    void genStatement(ASTNode* stmt, std::ostream& out);
 
    void genVarDecl(ASTNode* node, std::ostream& out);
@@ -51,4 +55,7 @@ private:
 
    void genFuncDef(ASTNode* node, std::ostream& out);
    void genReturnStmt(ASTNode* node, std::ostream& out);
+
+   std::string genBREPrintCall(ASTNode* node, std::ostream& out);
+   std::string inferType(ASTNode* node);
 };

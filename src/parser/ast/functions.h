@@ -39,3 +39,15 @@ struct CallExprNode : public ASTNode {
         line = ln;
     }
 };
+
+struct ExternDeclNode : public ASTNode {
+    std::string name;
+    std::string returnType;
+    std::vector<std::pair<std::string, std::string>> parameters;
+
+    ExternDeclNode(const std::string& n, const std::string& rt, std::vector<std::pair<std::string, std::string>> params, int ln) :
+    name(n), returnType(rt), parameters(std::move(params)) {
+        type = NodeType::EXTERN_DECL;
+        line = ln;
+    }
+};
