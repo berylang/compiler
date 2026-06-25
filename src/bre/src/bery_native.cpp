@@ -64,7 +64,28 @@ void bery_print_bool(bool value){bufferWriteStr(value ? "true" : "false");}
 
 
 void bery_print_char(char value) {bufferWrite(&value, 1);}
+BeryString* bery_input(const char* prompt) {
+    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
 
+    char* line = nullptr;
+    size_t lineLen = 0;
+    size_t lineCap = 64;
+    line = static_cast<char*>(malloc(lineCap));
+
+    int c;
+    while ((c = fgetc(stdin)) != EOF && c != '\n') {
+        if (lineLen + 1 >= lineCap) {
+            lineCap *= 2;
+            line = static_cast<char*>(realloc(line, lineCap));
+        }
+        line[lineLen++] = static_cast<char>(c);
+    }
+    line[lineLen] = '\0';
+
+    BeryString* result = bery_string_from_literal(line);
+    free(line);
+    return result;
+}
 void bery_print_string(BeryString* value){
     if (!value) return;
     bufferWrite(value->data, value->length);
@@ -138,7 +159,12 @@ void __bery_print_bool(bool v)          {
 void __bery_print_char(char v)          { 
     bery_print_char(v); 
 }
-void __bery_print_string(const char* v) {
+void __bery_print_string(BeryString* v) {
+    if (!v) return;
+    bufferWrite(v->data, v->length);
+}
+
+void __bery_print_cstr(const char* v) {
     if (!v) return;
     bufferWriteStr(v);
 }
@@ -160,4 +186,7 @@ bool     __bery_input_bool(const char* p)   {
 }
 char     __bery_input_char(const char* p)   { 
     return bery_input_char(p); 
+}
+BeryString* __bery_input_string(const char* p) {
+    return bery_input(p);
 }

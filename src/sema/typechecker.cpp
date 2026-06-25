@@ -211,6 +211,16 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
 
             } else if (assign->target->type == NodeType::INDEX_EXPR) {
                 auto* idxNode = static_cast<IndexExprNode*>(assign->target.get());
+                if (!symbolTable.exists(idxNode->name)) {
+                    std::cerr << "Bery:Error [Line " << idxNode->line << "]: Undefined array '" << idxNode->name << "'\n";
+                    errors = true;
+                    return "unknown";
+                }
+                Symbol& sym = symbolTable.get(idxNode->name);
+                if (sym.type.substr(0, 6) == "array<") {
+                    analyzeExpression(assign->value.get());
+                    return "void";
+                }
                 targetName = idxNode->name;
 
                 targetType = analyzeExpression(assign->target.get());
@@ -254,10 +264,15 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
             auto* idxNode = static_cast<IndexExprNode*>(node);
             if (!symbolTable.exists(idxNode->name)) {
                 std::cerr << "Bery:Error [Line " << idxNode->line << "]: Undefined array '" << idxNode->name << "'\n";
-                errors = true; 
+                errors = true;
                 return "unknown";
             }
             Symbol& sym = symbolTable.get(idxNode->name);
+            if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
+                std::string elemType = sym.type.substr(6, sym.type.size() - 7);
+                return elemType;
+            }
+
             int dimCount = 0;
             size_t pos = sym.type.find('[');
             while (pos != std::string::npos) {
@@ -267,28 +282,18 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
 
             if (dimCount == 0) {
                 std::cerr << "Bery:Error [Line " << idxNode->line << "]: Variable '" << idxNode->name << "' is not subscriptable\n";
-                errors = true; 
+                errors = true;
                 return "unknown";
             }
 
             if (idxNode->indices.size() > (size_t)dimCount) {
                 std::cerr << "Bery:Error [Line " << idxNode->line << "]: Too many indices for array '" << idxNode->name << "'\n";
-                errors = true; 
+                errors = true;
                 return "unknown";
             }
-
-            for (auto& index : idxNode->indices) {
-                std::string idxType = analyzeExpression(index.get());
-                if (idxType != "int" && idxType != "bigint") {
-                    std::cerr << "Bery:Error [Line " << idxNode->line << "]: Array index must be an integer\n";
-                    errors = true; 
-                    return "unknown";
-                }
-            }
-
-            std::string resultType = sym.type.substr(0, sym.type.find('['));
-            for (size_t i = 0; i < dimCount - idxNode->indices.size(); ++i) resultType += "[]";
-            return resultType;
+            for (auto& index : idxNode->indices) analyzeExpression(index.get());
+            std::string baseType = sym.type.substr(0, sym.type.find('['));
+            return baseType;
         }
         case NodeType::CALL_EXPR: {
             auto* call = static_cast<CallExprNode*>(node);

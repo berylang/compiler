@@ -10,6 +10,9 @@ void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
    std::string memReg = "%" + decl->name + "_" + std::to_string(++regCounter);
    symTable.add(decl->name, {decl->varType, decl->isConst, decl->value != nullptr, decl->line, memReg, lt});
    out << "    " << memReg << " = alloca " << lt << "\n";
+   if (decl->varType == "string") {
+        emitGCPush(memReg, lt, out);
+    }
    if (!decl->value) return;
    std::string valReg = genExpression(decl->value.get(), decl->varType, out);
    out << "    store " << lt << " " << valReg << ", " << lt << "* " << memReg << "\n";
@@ -17,6 +20,17 @@ void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
 
 void CodeGen::genArrayDecl(ASTNode* node, std::ostream& out) {
    auto* decl = static_cast<ArrayDeclNode*>(node);
+   if (decl->dimensions.size() == 1 && decl->dimensions[0] == -1) {
+        emitBREDecl("declare i8* @bery_array_new(i64)", "bery_array_new");
+        std::string memReg = "%" + decl->name + "_" + std::to_string(++regCounter);
+        symTable.add(decl->name, {"array<" + decl->elementType + ">", false, true, decl->line, memReg, "i8*"});
+        out << "    " << memReg << " = alloca i8*\n";
+        std::string arrReg = newReg();
+        out << "    " << arrReg << " = call i8* @bery_array_new(i64 4)\n";
+        out << "    store i8* " << arrReg << ", i8** " << memReg << "\n";
+        emitGCPush(memReg, "i8*", out);
+        return;
+    }
    std::string lt = llvmType(decl->elementType);
 
    std::string arrType = lt;
@@ -56,6 +70,7 @@ void CodeGen::genFuncDef(ASTNode* node, std::ostream& out) {
     out << ") {\nentry:\n";
     
     symTable.pushScope();
+    pushGCScope();
     for (auto& param : func->parameters) {
         std::string pType = llvmType(param.first);
         std::string pName = param.second;
@@ -68,6 +83,8 @@ void CodeGen::genFuncDef(ASTNode* node, std::ostream& out) {
     }
     
     for (auto& stmt : func->body->statements) genStatement(stmt.get(), out);
+    int roots = popGCScope();
+    emitGCPops(roots, out);
     symTable.popScope();
     bool endsWithReturn = false;
     if (!func->body->statements.empty() && 

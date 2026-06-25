@@ -9,9 +9,12 @@
 void CodeGen::genBlock(ASTNode* node, std::ostream& out) {
     auto* block = static_cast<BlockNode*>(node);
     symTable.pushScope(); 
+    pushGCScope();
     for (auto& stmt : block->statements) {
         genStatement(stmt.get(), out);
     }
+    int roots = popGCScope();
+    emitGCPops(roots, out);
     symTable.popScope();
 }
 
@@ -115,9 +118,12 @@ void CodeGen::genSwitchStmt(ASTNode* node, std::ostream& out) {
 
         out << "\n" << bodyLbl << ":\n";
         symTable.pushScope();
+        pushGCScope();
         for (auto& stmt : c.statements) {
             genStatement(stmt.get(), out);
         }
+        int roots = popGCScope();
+        emitGCPops(roots, out);
         symTable.popScope();
         
         bool endsWithBreak = !c.statements.empty() && c.statements.back()->type == NodeType::BREAK_STMT;
@@ -132,9 +138,12 @@ void CodeGen::genSwitchStmt(ASTNode* node, std::ostream& out) {
         out << "    br label %switch_default_body_" << blockId << "\n";
         out << "\nswitch_default_body_" << blockId << ":\n";
         symTable.pushScope();
+        pushGCScope();
         for (auto& stmt : sw->defaultBlock) {
             genStatement(stmt.get(), out);
         }
+        int roots = popGCScope();
+        emitGCPops(roots, out); 
         symTable.popScope();
         
         bool endsWithBreak = !sw->defaultBlock.empty() && sw->defaultBlock.back()->type == NodeType::BREAK_STMT;
@@ -164,9 +173,13 @@ void CodeGen::genForStmt(ASTNode* node, std::ostream& out) {
     auto* forStmt = static_cast<ForStmtNode*>(node);
     
     symTable.pushScope();
+    pushGCScope();
     if (forStmt->init) {
         genStatement(forStmt->init.get(), out);
     }
+    symTable.popScope();
+    int roots = popGCScope();
+    emitGCPops(roots, out);
     
     int blockid = ++regCounter;
     std::string condLbl = "for_cond_" + std::to_string(blockid);
@@ -206,6 +219,7 @@ void CodeGen::genForStmt(ASTNode* node, std::ostream& out) {
 void CodeGen::genForInStmt(ASTNode* node, std::ostream& out) {
     auto* forIn = static_cast<ForInNode*>(node);
     symTable.pushScope();
+    pushGCScope();
 
     if (forIn->rangeEnd) {
         std::string lt = "i32"; 
@@ -338,4 +352,6 @@ void CodeGen::genForInStmt(ASTNode* node, std::ostream& out) {
     }
 
     symTable.popScope();
+    int roots = popGCScope();
+    emitGCPops(roots, out);
 }

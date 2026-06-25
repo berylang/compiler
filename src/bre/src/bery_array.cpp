@@ -78,6 +78,15 @@ void* bery_array_get(BeryArray* arr, size_t index)  {
     return arr->data[index];
 }
 
+void bery_array_set(BeryArray* arr, size_t index, void* element) {
+    while (arr->length <= index) {
+        growIfNeeded(arr);
+        arr->data[arr->length] = nullptr;
+        arr->length += 1;
+    }
+    arr->data[index] = element;
+}
+
 size_t bery_array_length(BeryArray* arr)  {
     return arr->length;
 }

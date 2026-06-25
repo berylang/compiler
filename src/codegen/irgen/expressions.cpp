@@ -62,7 +62,14 @@ std::string CodeGen::genBREPrintCall(ASTNode* node, std::ostream& out) {
         else if (argType == "double") { sym = "__bery_print_double"; llvmT = "double"; }
         else if (argType == "bool")   { sym = "__bery_print_bool";   llvmT = "i1"; }
         else if (argType == "char")   { sym = "__bery_print_char";   llvmT = "i8"; }
-        else if (argType == "string") { sym = "__bery_print_string"; llvmT = "i8*"; }
+        else if (argType == "string") { 
+            bool isLiteral = (call->arguments[0]->type == NodeType::STRING_LIT);
+            if (isLiteral) {
+                sym = "__bery_print_cstr"; llvmT = "i8*";
+            } else {
+                sym = "__bery_print_string"; llvmT = "i8*";
+            }
+        }
         else                          { sym = "__bery_print_int";    llvmT = "i32"; }
 
         emitBREDecl("declare void @" + sym + "(" + llvmT + ")", sym);
@@ -448,6 +455,26 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         } else if (assign->target->type == NodeType::INDEX_EXPR) {
             auto* idxNode = static_cast<IndexExprNode*>(assign->target.get());
             Symbol& sym = symTable.get(idxNode->name);
+            if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
+                std::string elemType = sym.type.substr(6, sym.type.size() - 7);
+                std::string lt = llvmType(elemType);
+                emitBREDecl("declare void @bery_array_set(i8*, i64, i8*)", "bery_array_set");
+                std::string arrReg = newReg();
+                out << "    " << arrReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
+
+                std::string idxReg = genExpression(idxNode->indices[0].get(), "int", out);
+                std::string idxExt = newReg();
+                out << "    " << idxExt << " = sext i32 " << idxReg << " to i64\n";
+                std::string valReg = genExpression(assign->value.get(), elemType, out);
+
+                std::string slotReg = newReg();
+                out << "    " << slotReg << " = alloca " << lt << "\n";
+                out << "    store " << lt << " " << valReg << ", " << lt << "* " << slotReg << "\n";
+                std::string castReg = newReg();
+                out << "    " << castReg << " = bitcast " << lt << "* " << slotReg << " to i8*\n";
+                out << "    call void @bery_array_set(i8* " << arrReg << ", i64 " << idxExt << ", i8* " << castReg << ")\n";
+                return valReg;
+            }
             
             std::string baseType = sym.type.substr(0, sym.type.find('['));
             targetLT = llvmType(baseType);
@@ -567,8 +594,27 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         return resReg;
     }
     if (node->type == NodeType::INDEX_EXPR) {
+        auto* idx = static_cast<IndexExprNode*>(node);
+        Symbol& sym = symTable.get(idx->name);
+        if (sym.type.substr(0, 6) == "array<") {
+            std::string elemType = sym.type.substr(6, sym.type.size() - 7);
+            std::string lt = llvmType(elemType);
+            emitBREDecl("declare i8* @bery_array_get(i8*, i64)", "bery_array_get");
+            std::string arrReg = newReg();
+            out << "    " << arrReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
+            std::string idxReg = genExpression(idx->indices[0].get(), "int", out);
+            std::string idxExt = newReg();
+            out << "    " << idxExt << " = sext i32 " << idxReg << " to i64\n";
+            std::string rawReg = newReg();
+            out << "    " << rawReg << " = call i8* @bery_array_get(i8* " << arrReg << ", i64 " << idxExt << ")\n";
+            std::string castReg = newReg();
+            out << "    " << castReg << " = bitcast i8* " << rawReg << " to " << lt << "*\n";
+
+            std::string valReg = newReg();
+            out << "    " << valReg << " = load " << lt << ", " << lt << "* " << castReg << "\n";
+            return valReg;
+        }
         auto* idxNode = static_cast<IndexExprNode*>(node);
-        Symbol& sym = symTable.get(idxNode->name);
         
         std::string baseType = sym.type.substr(0, sym.type.find('['));
         std::string lt = llvmType(baseType);

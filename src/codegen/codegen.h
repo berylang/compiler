@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <stack>
 #include <unordered_map>
 #include <unordered_set>
 #include "../parser/ast/node.h"
@@ -31,6 +32,8 @@ private:
    std::unordered_map<std::string, CodeGenFunctionSignature> functions;
    std::string currentFuncReturn;
    std::string extractConstant(ASTNode* node);
+   std::stack<int> gcRootScopeStack;
+   int gcRootCounter = 0;
 
    std::string newReg();
    std::string llvmType(const std::string& berryType);
@@ -58,4 +61,9 @@ private:
 
    std::string genBREPrintCall(ASTNode* node, std::ostream& out);
    std::string inferType(ASTNode* node);
+
+   void emitGCPush(const std::string& allocaReg, const std::string& llvmType, std::ostream& out);
+   void emitGCPops(int count, std::ostream& out);
+   void pushGCScope();
+   int popGCScope();
 };
