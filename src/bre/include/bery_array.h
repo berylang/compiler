@@ -18,6 +18,7 @@ extern "C" {
     void bery_array_remove(BeryArray* arr, size_t index);
     void* bery_array_get(BeryArray* arr, size_t index);
     size_t bery_array_length(BeryArray* arr);
+    void bery_array_set(BeryArray* arr, size_t index, void* element);
 }
 
 extern uint32_t g_beryArrayTypeId;

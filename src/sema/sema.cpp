@@ -117,7 +117,10 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
         std::cerr << "Bery:Error [Line "<< decl->line <<"]: '" << decl->name << "' already declared.\n";
         errors = true; return;
     }
-
+    if (decl->dimensions.size() == 1 && decl->dimensions[0] == -1 && decl->initializers.empty()) {
+        symbolTable.add(decl->name, {"array<" + decl->elementType + ">", false, false, decl->line, "", "", 0});
+        return;
+    }
     int totalSize = 1;
     int inferredDim = -1;
     for (size_t i = 0; i < decl->dimensions.size(); ++i) {

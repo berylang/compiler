@@ -30,7 +30,9 @@ extern "C" {
     void __bery_print_double(double v);
     void __bery_print_bool(bool v);
     void __bery_print_char(char v);
-    void __bery_print_string(const char* v);
+    void __bery_print_string(BeryString* v);
+    void __bery_print_cstr(const char* v);
+    
 
     int32_t  __bery_input_int(const char* p);
     int64_t  __bery_input_bigint(const char* p);

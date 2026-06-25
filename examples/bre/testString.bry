@@ -1,0 +1,4 @@
+run {
+    string a = inputString("Enter your name : ") ;
+    println(a);
+}
