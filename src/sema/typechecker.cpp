@@ -32,6 +32,20 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
         
         case NodeType::IDENT:{
             auto* ident = static_cast<IdentNode*>(node);
+            size_t dot = ident->name.find('.');
+            if (dot != std::string::npos) {
+                std::string objName = ident->name.substr(0, dot);
+                std::string propName = ident->name.substr(dot+1);
+                if (!symbolTable.exists(objName)) {
+                    std::cerr << "Bery: Error: [Line " << ident->line << "]: Undefined variable '" << objName << "'\n";
+                    errors = true;
+                    return "unknown";
+                }
+                if(propName == "len") return "int";
+                std::cerr << "Bery:Error [Line " << ident->line << "]: Unknown property '" << propName << "'\n";
+                errors = true;
+                return "unknown";
+            }
             if(!symbolTable.exists(ident->name)){
                 std::cerr<<"Bery:Error [Line "<< ident->line <<"]: Undefined Variable '"<<ident->name<<"'\n";
                 errors=true;
@@ -63,7 +77,10 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
 
             std::string lType = analyzeExpression(binary->left.get());
             std::string rType = analyzeExpression(binary->right.get());
-            
+            if (lType == "string" && rType == "string") {
+                if (binary->optr == "+") return "string";
+                if (binary->optr == "==" || binary->optr == "!=") return "bool";
+            }
             std::string resolvedType = lType;
             if(lType != rType){
                 if ((lType == "bigint" && rType == "int") ||(lType == "int" && rType == "bigint")) resolvedType = "bigint";
@@ -326,6 +343,31 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
                 if (call->callee == "inputChar")   return "char";
                 if (call->callee == "inputString") return "string";
                 return "void";
+            }
+            size_t dot = call->callee.find('.');
+            if (dot != std::string::npos) {
+                std::string objName = call->callee.substr(0,dot);
+                std::string method= call->callee.substr(dot +1);
+                if (!symbolTable.exists(objName)) {
+                    std::cerr << "Bery:Error [Line " << call->line << "]: Undefined variable '" << objName << "'\n";
+                    errors = true;
+                    return "unknown";
+                }
+                std::string objType = symbolTable.get(objName).type;
+                if (objType == "string") {
+                    if (method == "substr") return "string";
+                    if (method == "len")   return "int";
+                    if (method == "copy")  return "string";
+                }
+                if (objType.size() > 6 && objType.substr(0, 6) == "array<") {
+                    std::string elemType = objType.substr(6, objType.size() - 7);
+                    if (method == "push" || method == "pop" ||method == "insert" ||  method == "remove" ) return "void";
+                    if (method == "len") return "int";
+                    if (method == "get") return elemType;
+                }
+                std::cerr << "Bery:Error [Line " << call->line << "]: Unknown method '" << method << "' on type '" << objType << "'\n";
+                errors = true;
+                return "unknown";
             }
             
             if (functions.find(call->callee) == functions.end()) {

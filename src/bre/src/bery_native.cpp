@@ -64,9 +64,11 @@ void bery_print_bool(bool value){bufferWriteStr(value ? "true" : "false");}
 
 
 void bery_print_char(char value) {bufferWrite(&value, 1);}
-BeryString* bery_input(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
-
+BeryString* bery_input(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     char* line = nullptr;
     size_t lineLen = 0;
     size_t lineCap = 64;
@@ -93,48 +95,67 @@ void bery_print_string(BeryString* value){
 
 void bery_println() {
     bufferWrite("\n", 1);
+    bery_output_flush();
 }
 
 // @these are all input functions different for different datatype : 
 
 
-int32_t bery_input_int(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
+int32_t bery_input_int(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     int32_t val = 0;
     scanf("%d", &val);
     return val;
 }
 
-int64_t bery_input_bigint(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
+int64_t bery_input_bigint(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     int64_t val = 0;
     scanf("%lld", (long long*)&val);
     return val;
 }
 
-float bery_input_float(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
+float bery_input_float(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     float val = 0.0f;
     scanf("%f", &val);
     return val;
 }
 
-double bery_input_double(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
+double bery_input_double(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     double val = 0.0;
     scanf("%lf", &val);
     return val;
 }
 
-bool bery_input_bool(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
+bool bery_input_bool(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     int val = 0;
     scanf("%d", &val);
     return val != 0;
 }
 
-char bery_input_char(const char* prompt) {
-    if (prompt) { bufferWriteStr(prompt); bery_output_flush(); }
+char bery_input_char(BeryString* prompt) {
+    if (prompt) { 
+        bufferWrite(prompt->data, prompt->length); 
+        bery_output_flush(); 
+    }
     char val = 0;
     scanf(" %c", &val);
     return val;
@@ -169,24 +190,10 @@ void __bery_print_cstr(const char* v) {
     bufferWriteStr(v);
 }
 
-int32_t  __bery_input_int(const char* p)    { 
-    return bery_input_int(p);
-}
-int64_t  __bery_input_bigint(const char* p) { 
-    return bery_input_bigint(p);
-}
-float    __bery_input_float(const char* p)  { 
-    return bery_input_float(p); 
-}
-double   __bery_input_double(const char* p) { 
-    return bery_input_double(p); 
-}
-bool     __bery_input_bool(const char* p)   { 
-    return bery_input_bool(p); 
-}
-char     __bery_input_char(const char* p)   { 
-    return bery_input_char(p); 
-}
-BeryString* __bery_input_string(const char* p) {
-    return bery_input(p);
-}
+int32_t  __bery_input_int(BeryString* p)    { return bery_input_int(p); }
+int64_t  __bery_input_bigint(BeryString* p) { return bery_input_bigint(p); }
+float    __bery_input_float(BeryString* p)  { return bery_input_float(p); }
+double   __bery_input_double(BeryString* p) { return bery_input_double(p); }
+bool     __bery_input_bool(BeryString* p)   { return bery_input_bool(p); }
+char     __bery_input_char(BeryString* p)   { return bery_input_char(p); }
+BeryString* __bery_input_string(BeryString* p) { return bery_input(p); }

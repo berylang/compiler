@@ -1,0 +1,28 @@
+
+run {
+    string a = inputString("Name: ");
+    string b = a;
+    display(b);
+   
+    string c = a + " Humbe";
+     
+    println(c);
+    println(a.len);
+    println(a.substr(0, 3));
+
+    int arr[];
+    arr.push(10);
+    arr.push(20);
+    arr.push(30);
+    println(arr.len);
+    println(arr[1]);
+    arr.insert(1, 99);
+    println(arr[1]);
+    arr.remove(0);
+    println(arr[0]);
+}
+
+func display(string a) -> int {
+    println("I printed : " + a);
+    return 0;
+}

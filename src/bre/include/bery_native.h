@@ -16,13 +16,13 @@ extern "C" {
     void bery_print_string(BeryString* value);
     void bery_println();
 
-    BeryString* bery_input(const char* prompt);
-    int32_t  bery_input_int(const char* prompt);
-    int64_t  bery_input_bigint(const char* prompt);
-    float    bery_input_float(const char* prompt);
-    double   bery_input_double(const char* prompt);
-    bool     bery_input_bool(const char* prompt);
-    char     bery_input_char(const char* prompt);
+    BeryString* bery_input(BeryString* prompt);
+    int32_t  bery_input_int(BeryString* prompt);
+    int64_t  bery_input_bigint(BeryString* prompt);
+    float    bery_input_float(BeryString* prompt);
+    double   bery_input_double(BeryString* prompt);
+    bool     bery_input_bool(BeryString* prompt);
+    char     bery_input_char(BeryString* prompt);
 
     void __bery_print_int(int32_t v);
     void __bery_print_bigint(int64_t v);
@@ -34,10 +34,11 @@ extern "C" {
     void __bery_print_cstr(const char* v);
     
 
-    int32_t  __bery_input_int(const char* p);
-    int64_t  __bery_input_bigint(const char* p);
-    float    __bery_input_float(const char* p);
-    double   __bery_input_double(const char* p);
-    bool     __bery_input_bool(const char* p);
-    char     __bery_input_char(const char* p);
+    int32_t  __bery_input_int(BeryString* p);
+    int64_t  __bery_input_bigint(BeryString* p);
+    float    __bery_input_float(BeryString* p);
+    double   __bery_input_double(BeryString* p);
+    bool     __bery_input_bool(BeryString* p);
+    char     __bery_input_char(BeryString* p);
+    BeryString* __bery_input_string(BeryString* p);
 }

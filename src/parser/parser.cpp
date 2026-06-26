@@ -17,19 +17,33 @@ Parser::Parser(const std::vector<Token>& tokens)
 
 std::unique_ptr<ASTNode> Parser::parse() {
     auto program = std::make_unique<ProgramNode>(); 
-    while (!isAtEnd() && !check(TokenType::TOKEN_RUN)) {
+    
+    while (!isAtEnd()) {
         try {
-            if (check(TokenType::TOKEN_FUNC)) {
+            if (check(TokenType::TOKEN_RUN)) {
+                advance();
+                int runline = previous().line;
+                consume(TokenType::TOKEN_LBRACE, "Expected '{' after run");
+                auto runBlock = std::make_unique<RunBlockNode>(runline);
+                while (!isAtEnd() && !check(TokenType::TOKEN_RBRACE)) {
+                    try {
+                        runBlock->statements.push_back(parseStatement());
+                    } catch(ParseError& e) {
+                        synchronize();
+                    }
+                }
+                consume(TokenType::TOKEN_RBRACE, "Expected '}' after run block");
+                program->runBlock = std::move(runBlock);
+            } 
+            else if (check(TokenType::TOKEN_FUNC)) {
                 program->globals.push_back(parseFunctionDef());
-                continue;
             } else if (check(TokenType::TOKEN_ENUM)) {
                 program->globals.push_back(parseEnumDecl());
             } else if (check(TokenType::TOKEN_IMPORT)) {
                 program->globals.push_back(parseImportDecl());
             } else if (check(TokenType::TOKEN_EXTERN)) {
                 program->globals.push_back(parseExternDecl());
-            }
-            else {
+            } else {
                 bool isConst = false;
                 if (check(TokenType::TOKEN_CONST)) { advance(); isConst = true; }
                 if (isTypeToken(peek().type)) {
@@ -51,24 +65,11 @@ std::unique_ptr<ASTNode> Parser::parse() {
         }
     }
 
-    if (check(TokenType::TOKEN_RUN)) {
-        advance();
-        int runline = previous().line;
-        consume(TokenType::TOKEN_LBRACE, "Expected '{' after run");
-        auto runBlock = std::make_unique<RunBlockNode>(runline);
-        while (!isAtEnd() && !check(TokenType::TOKEN_RBRACE)) {
-            try {
-                runBlock->statements.push_back(parseStatement());
-            } catch(ParseError& e) {
-                synchronize();
-            }
-        }
-        consume(TokenType::TOKEN_RBRACE, "Expected '}' after run block");
-        program->runBlock = std::move(runBlock);
-    } else {
-        std::cerr << "Bery:Error [Line " <<peek().line << "]: no run{} block found\n";
+    if (!program->runBlock) {
+        std::cerr << "Bery:Error: no run{} block found\n";
         errors = true;
     }
+    
     return program;
 }
 
