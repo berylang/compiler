@@ -1,3 +1,17 @@
+/*
+
+    SymbolTable actual implementation, 
+    this file defines logic of each process performed on symbol table.
+
+    1. push scope
+    2. pop scope
+    3. declare the sybmol
+    4. check if it is present or not
+    5. get the symbol (fetching)
+
+    
+*/
+
 #include "symboltable.h"
 #include <stdexcept>
 #include <iostream>

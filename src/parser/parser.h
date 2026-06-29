@@ -1,4 +1,13 @@
 #pragma once
+
+/*
+
+PARSER DEFINITION
+
+This is header file served for parser's definition.
+it contains every helper functions which eventually helps the 'parse()' method.
+
+*/
 #include "ast/node.h"
 #include "ast/blocknode.h"
 #include "../lexer/token.h"
@@ -6,35 +15,53 @@
 #include <memory>
 #include <exception>
 
-
+// @panic-mode trigger for error recovery
 class ParseError : public std::exception {};
+
+
 class Parser {
-    public:
+public:
     Parser(const std::vector<Token>& tokens);
     std::unique_ptr<ASTNode> parse();
+
+    // @todo : change it to the Error Handler after it's implementation as independent unit of compiler.
     bool hasErrors();
 
-    private:
+private:
+    // @ast-node data and token list
     std::vector<Token> tokens;
     int current;
     bool errors;
 
+    // @pointers inside the token list
     Token advance();
     Token peek();
     Token previous();
     bool isAtEnd();
-    bool check(TokenType type);
-    Token consume(TokenType type, const std::string& msg);
     bool isTypeToken(TokenType t);
+
+    // @check for peek() matches the required token type
+    bool check(TokenType type);
+
+    // @actively consume the required token; if absent throw error
+    Token consume(TokenType type, const std::string& msg);
+    
+    // @panic-mode recovery
     void synchronize();
     
+
+    // @every parse function
+    // @statements
     std::vector<std::unique_ptr<ASTNode>> parseVarDecl(bool isConst);
     std::unique_ptr<ASTNode> parseLiteral();
     bool isArrayDecl();
     std::unique_ptr<ASTNode> parseArrayDecl();
     void parseArrayInitializer(std::vector<std::unique_ptr<ASTNode>>& initializers);
+    std::unique_ptr<ASTNode> parseEnumDecl();
+    std::unique_ptr<ASTNode> parseImportDecl();
+    std::unique_ptr<ASTNode> parseExternDecl();
     
-    //@expressions
+    //@expressions - recursive descent
     std::unique_ptr<ASTNode> parseExpression();
     std::unique_ptr<ASTNode> parsePrimary();
     std::unique_ptr<ASTNode> parsePostfix();
@@ -50,28 +77,30 @@ class Parser {
     std::unique_ptr<ASTNode> parseLogicalOr();
     std::unique_ptr<ASTNode> parseTernary();
     
-    //@blocks
+    // @repititive blocks
     std::unique_ptr<ASTNode> parseStatement();
     std::unique_ptr<BlockNode> parseBlock();
+
+    // @controlflow
     std::unique_ptr<ASTNode> parseIfStmt();
     std::unique_ptr<ASTNode> parseSwitchStmt();
+
+    // @controlflow
+    std::unique_ptr<ASTNode> parseContinueStmt();
+    std::unique_ptr<ASTNode> parsePassStmt();
     std::unique_ptr<ASTNode> parseBreakStmt();
 
-
+    // @loops
     std::unique_ptr<ASTNode> parseWhileStmt();
     std::unique_ptr<ASTNode> parseDoWhileStmt();
     std::unique_ptr<ASTNode> parseForStmt();
-    std::unique_ptr<ASTNode> parseContinueStmt();
-    std::unique_ptr<ASTNode> parsePassStmt();
 
+    // @functions
     std::unique_ptr<ASTNode> parseFunctionDef();
     std::unique_ptr<ASTNode> parseCallExpr(const Token& identifierToken);
     std::unique_ptr<ASTNode> parseReturnStmt();
 
-    std::unique_ptr<ASTNode> parseEnumDecl();
-    std::unique_ptr<ASTNode> parseImportDecl();
-    std::unique_ptr<ASTNode> parseExternDecl();
-
+    // @oops
     std::unique_ptr<ASTNode> parseClassDecl();
 };
 

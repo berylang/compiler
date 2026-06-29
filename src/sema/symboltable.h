@@ -1,4 +1,22 @@
 #pragma once
+
+/*
+
+   Bery Symbol Table,
+
+   It is a scoped key-value store, which stores every declared variable, it's datatype, whether it is constant and 
+   whether it's initialized or not.
+
+   Internally it's a stack of hashmaps. 
+      Each '{' pushes a new scope
+      lookup tranverse stack from top to bottom.
+      and each '}' pops it.
+   
+   @todo : add symboltype for storing variables, classes, and functions in same table.
+   @todo : make it global symbol table.
+   @todo : add resolvedType for IR generator
+
+*/
 #include <string>
 #include <unordered_map>
 #include <vector>

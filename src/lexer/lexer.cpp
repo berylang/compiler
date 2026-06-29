@@ -1,3 +1,14 @@
+/*
+
+    Lexer Class
+
+    actual implementation of the Lexer class.
+    it includes - 
+        1. keyword hashmap, which is checked by scanIdentifierOrKeyword() -> checkKeyword()
+        2. Scanner, implemented by maximal munch method.
+
+*/
+
 #include "lexer.h"
 #include <unordered_map>
 #include <stdexcept>
@@ -5,34 +16,52 @@
 
 
 static std::unordered_map<std::string, TokenType> keywords = {
+
+    // @types
     {"int", TokenType::TOKEN_INT},
     {"float", TokenType::TOKEN_FLOAT},
     {"bigint", TokenType::TOKEN_BIGINT},
     {"double", TokenType::TOKEN_DOUBLE},
-    {"run", TokenType::TOKEN_RUN},
     {"bool", TokenType::TOKEN_BOOL},
-    {"true", TokenType::TOKEN_TRUE},
-    {"false", TokenType::TOKEN_FALSE},
     {"char", TokenType::TOKEN_CHAR},
     {"string", TokenType::TOKEN_STRING},
+
+    // @blocks
+    {"run", TokenType::TOKEN_RUN},
+
+    // @literals
+    {"true", TokenType::TOKEN_TRUE},
+    {"false", TokenType::TOKEN_FALSE},
     {"null", TokenType::TOKEN_NULL},
+
+    // @conditionals
     {"if", TokenType::TOKEN_IF},
     {"else", TokenType::TOKEN_ELSE},
     {"switch",TokenType::TOKEN_SWITCH},
     {"case",TokenType::TOKEN_CASE},
-    {"break",TokenType::TOKEN_BREAK},
     {"default",TokenType::TOKEN_DEFAULT},
-    {"while", TokenType::TOKEN_WHILE},
-    {"do", TokenType::TOKEN_DOWHILE},
-    {"func", TokenType::TOKEN_FUNC},
-    {"return", TokenType::TOKEN_RETURN},
+    
+    // @controlflow
+    {"break",TokenType::TOKEN_BREAK},
     {"continue", TokenType::TOKEN_CONTINUE},
     {"pass", TokenType::TOKEN_PASS},
-    {"enum", TokenType::TOKEN_ENUM},
+
+    // @loops
+    {"while", TokenType::TOKEN_WHILE},
+    {"do", TokenType::TOKEN_DOWHILE},
     {"for", TokenType::TOKEN_FOR},
     {"in", TokenType::TOKEN_IN},
+
+    // @functions
+    {"func", TokenType::TOKEN_FUNC},
+    {"return", TokenType::TOKEN_RETURN},
+
+    // @special keywords
+    {"enum", TokenType::TOKEN_ENUM},
     {"import", TokenType::TOKEN_IMPORT}, 
     {"extern", TokenType::TOKEN_EXTERN},
+    
+    // @object oriented programming
     {"class", TokenType::TOKEN_CLASS},
     {"attributes", TokenType::TOKEN_ATTRIBUTES},
     {"methods", TokenType::TOKEN_METHODS}
@@ -46,6 +75,8 @@ std::vector<Token> Lexer::tokanize() {
         if (!isAtEnd()) scanToken();
     }
     tokens.push_back({TokenType::TOKEN_EOF, "", line});
+
+    // it goes to parser next. vector of tokens.
     return tokens;
 }
 
@@ -298,14 +329,14 @@ void Lexer::scanToken() {
             }
             break;
         case ':':
-        if(peek()==':'){
-            advance();
-            tokens.push_back({TokenType::TOKEN_DCOLON, "::", line});
-            return;
-        }else{
-            tokens.push_back({TokenType::TOKEN_COLON, ":", line});
-            return;
-        }
+            if(peek()==':'){
+                advance();
+                tokens.push_back({TokenType::TOKEN_DCOLON, "::", line});
+                return;
+            }else{
+                tokens.push_back({TokenType::TOKEN_COLON, ":", line});
+                return;
+            }
         case '?':
             tokens.push_back({TokenType::TOKEN_QUESTION, "?", line});
             break;
@@ -320,7 +351,17 @@ void Lexer::scanToken() {
         }
         
 }
-//@todo - add TOKEN_DECIMAL_LIT;
+/*
+
+scanNumber() scans both integers and floating point numbers.
+
+10 is valid integer
+10.2 is valid floating point
+
+10. is invalid
+.10 is invalid
+
+*/
 void Lexer::scanNumber() {
     int start = current - 1;
     while (!isAtEnd() && isDigit(peek())) advance(); 
@@ -337,7 +378,7 @@ void Lexer::scanNumber() {
     }
 }
 
-// @todo - Enhance it later for Errors
+// @todo : Enhance it later for Errors
 void Lexer::scanCharLit() {
     if (errors) return; 
 
@@ -448,9 +489,7 @@ void Lexer::scanIdentifierOrKeyword() {
     std::string lexeme = source.substr(start, current - start);
     tokens.push_back({checkKeyword(lexeme), lexeme, line});
 }
-bool Lexer::isAtEnd() {
-    return current >= (int) source.size();
-}
+
 
 void Lexer::skipWhitespaces() {
     while (!isAtEnd()) {
@@ -493,6 +532,9 @@ TokenType Lexer::checkKeyword(const std::string& lexeme) {
     if (it != keywords.end()) return it->second;
     return TokenType::TOKEN_IDENT;
 }
+
+// @helpers
+bool Lexer::isAtEnd() { return current >= (int) source.size(); }
 bool Lexer::isAlphaNumeric(char c) {return isAlpha(c) || isDigit(c);}
 bool Lexer::isAlpha(char c) {return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';}
 bool Lexer::isDigit(char c) {return c >= '0' && c <= '9';}
@@ -500,4 +542,5 @@ char Lexer::advance() {return source[current++];}
 char Lexer::peek() {return source[current];}
 char Lexer::peekNext() {return source[current + 1];}
 
+// @todo : change it later for better Errors;
 bool Lexer::hasErrors() {return errors;}

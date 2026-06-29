@@ -127,7 +127,7 @@ static int cmdCompile(const std::string& sourcePath, std::string& outBinaryPath,
         std::cerr << "Bery: Error: linker failed.\n";
         return 13;
     }
-    remove(irFile.c_str());
+    //remove(irFile.c_str());
     remove(objFile.c_str());
     return 0;
 }
@@ -153,7 +153,7 @@ int main(int argc, char* argv[]) {
     std::string cmd = argv[1];
     std::string exeDir = getExeDir(argv[0]);
     if (cmd == "--version" || cmd == "-v") {
-        std::cout << "Bery " << BERY_VERSION << " (" << BERY_PROJECT_ID << ")\n";
+        std::cout << "Bery " << BERY_VERSION << "\n";
         return 0;
     }
 

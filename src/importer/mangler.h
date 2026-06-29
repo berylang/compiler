@@ -1,4 +1,15 @@
 #pragma once
+
+/*
+
+    Bery Name Mangler,
+
+    It mangles the name for the IR generation, 
+    as at LLVM level dot access such as 'math.add()' is invalid,
+
+    so mangler converts it into '"math.add()"' as complete name.
+*/
+
 #include <string>
 #include <unordered_set>
 #include "../parser/ast/node.h"

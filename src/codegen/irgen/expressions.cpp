@@ -106,778 +106,574 @@ std::string CodeGen::inferType(ASTNode* node) {
     }
 }
 
-std::string CodeGen::genBREPrintCall(ASTNode* node, std::ostream& out) {
-    auto* call = static_cast<CallExprNode*>(node);
-    const std::string& callee = call->callee;
-
-    auto emitPrint = [&](ASTNode* arg) {
-        std::string argType = inferType(arg);
-        std::string sym, llvmT;
-        if      (argType == "int")    { sym = "__bery_print_int";    llvmT = "i32"; }
-        else if (argType == "bigint") { sym = "__bery_print_bigint"; llvmT = "i64"; }
-        else if (argType == "float")  { sym = "__bery_print_float";  llvmT = "float"; }
-        else if (argType == "double") { sym = "__bery_print_double"; llvmT = "double"; }
-        else if (argType == "bool")   { sym = "__bery_print_bool";   llvmT = "i1"; }
-        else if (argType == "char")   { sym = "__bery_print_char";   llvmT = "i8"; }
-        else if (argType == "string") { 
-            sym = "__bery_print_string"; 
-            llvmT = "i8*"; 
-        }
-        else                          { sym = "__bery_print_int";    llvmT = "i32"; }
-
-        emitBREDecl("declare void @" + sym + "(" + llvmT + ")", sym);
-        std::string argReg = genExpression(arg, argType, out);
-        out << "    call void @" << sym << "(" << llvmT << " " << argReg << ")\n";
+std::string CodeGen::emitBinaryOp(const std::string& op, const std::string& llvmT, bool isFloat, const std::string& lReg, const std::string& rReg, std::ostream& out) {
+    std::string res = newReg();
+    static const std::unordered_map<std::string, std::pair<std::string,std::string>> opMap = {
+        {"+",  {"fadd", "add" }},
+        {"-",  {"fsub", "sub" }},
+        {"*",  {"fmul", "mul" }},
+        {"/",  {"fdiv", "sdiv"}},
+        {"%",  {"","srem"}},
+        {"<<", {"","shl" }},
+        {">>", {"","ashr"}},
+        {"&",  {"","and" }},
+        {"|",  {"","or"  }},
+        {"^",  {"","xor" }},
+        {"==", {"fcmp oeq", "icmp eq" }},
+        {"!=", {"fcmp one", "icmp ne" }},
+        {">",  {"fcmp ogt", "icmp sgt"}},
+        {"<",  {"fcmp olt", "icmp slt"}},
+        {">=", {"fcmp oge", "icmp sge"}},
+        {"<=", {"fcmp ole", "icmp sle"}},
     };
 
-    if (callee == "print") {
-        emitPrint(call->arguments[0].get());
-        return "0";
-    }
+    auto it = opMap.find(op);
+    if (it == opMap.end()) return "0";
 
-    if (callee == "println") {
-        if (!call->arguments.empty()) {
-            emitPrint(call->arguments[0].get());
-        }
-        emitBREDecl("declare void @bery_println()", "bery_println");
-        out << "    call void @bery_println()\n";
-        return "0";
-    }
-    struct InputMapping {
-        const char* callee;
-        const char* sym;
-        const char* llvmRet;
-    };
-    static const InputMapping inputMap[] = {
-        {"inputInt",    "__bery_input_int",    "i32"},
-        {"inputBigInt", "__bery_input_bigint", "i64"},
-        {"inputFloat",  "__bery_input_float",  "float"},
-        {"inputDouble", "__bery_input_double", "double"},
-        {"inputBool",   "__bery_input_bool",   "i1"},
-        {"inputChar",   "__bery_input_char",   "i8"},
-        {"inputString", "bery_input",          "i8*"},
-    };
+    std::string ins = isFloat ? it->second.first : it->second.second;
+    if (ins.empty()) return "0";
 
-    for (auto& m : inputMap) {
-        if (callee == m.callee) {
-            emitBREDecl(
-                std::string("declare ") + m.llvmRet + " @" + m.sym + "(i8*)",
-                m.sym
-            );
-            std::string promptReg = genExpression(call->arguments[0].get(), "string", out);
-            std::string resReg = newReg();
-            out << "    " << resReg << " = call " << m.llvmRet
-                << " @" << m.sym << "(i8* " << promptReg << ")\n";
-            return resReg;
-        }
-    }
-
-    return "0";
+    out << "    " << res << " = " << ins << " " << llvmT << " " << lReg << ", " << rReg << "\n";
+    return res;
 }
-std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out) {
-    if(!node){return "0";}
-    if (node->type == NodeType::NULL_LIT) {return "null";}
+std::string CodeGen::genLiteral(ASTNode* node, const std::string& expectedType, std::ostream& out) {
     std::string lt = llvmType(expectedType);
-    bool isFloat = (expectedType=="float" || expectedType=="double");
+    bool isFloat = (expectedType == "float" || expectedType == "double");
+
     if (node->type == NodeType::INT_LIT) {
         auto* lit = static_cast<IntLitNode*>(node);
         if (isFloat) {
-            std::string tmp = newReg();
             std::string reg = newReg();
-            out << "    " << tmp << " = add i32 0, " << lit->value << "\n";
-            out << "    " << reg << " = sitofp i32 " << tmp << " to " << lt << "\n";
-            return reg;
-        } else {
-            std::string reg = newReg();
-            out << "    " << reg << " = add " << lt << " 0, " << lit->value << "\n";
+            out << "    " << reg << " = sitofp i32 " << lit->value << " to " << lt << "\n";
             return reg;
         }
+        return std::to_string(lit->value);
     }
+
     if (node->type == NodeType::DECIMAL_LIT) {
         auto* lit = static_cast<DecimalLitNode*>(node);
         std::ostringstream ss;
         ss << std::scientific << std::setprecision(17) << lit->value;
-        std::string reg = newReg();
-        out << "    " << reg << " = fadd " << lt << " 0.0, " << ss.str() << "\n";
-        return reg;
+        return ss.str();
     }
+
     if (node->type == NodeType::BOOL_LIT) {
-            std::string reg = newReg();
-        auto* lit = static_cast<BoolLitNode*>(node);
-        out << "    " << reg << " = add i1 0, " << (lit->value? 1:0) << "\n";
-        return reg;
+        return static_cast<BoolLitNode*>(node)->value ? "1" : "0";
     }
+
     if (node->type == NodeType::CHAR_LIT) {
-            std::string reg = newReg();
-        auto* lit = static_cast<CharLitNode*>(node);
-        out << "    " << reg << " = add " << lt << " 0, " << (int)lit->value << "\n"; //for ascii
-        return reg;
+        return std::to_string((int)static_cast<CharLitNode*>(node)->value);
     }
+
     if (node->type == NodeType::STRING_LIT) {
-            auto* lit = static_cast<StringLitNode*>(node);
-            std::string strVal = lit->value;
-            std::string escapedStr = escapeLLVMString(strVal);
-
-            int strlen = strVal.length() + 1;
-            std::string globalName = "@.str." + std::to_string(strCounter++);
-
-            globalStrings << globalName << " = private unnamed_addr constant [" << strlen << " x i8] c\"" <<escapedStr << "\"\n";
-            std::string rawReg = newReg();
-            out << "    " << rawReg << " = getelementptr [" << strlen << " x i8], [" << strlen << " x i8]* " << globalName << ", i32 0, i32 0\n";
-            emitBREDecl("declare i8* @bery_string_from_literal(i8*)", "bery_string_from_literal");
-            std::string objReg = newReg();
-            out << "    " << objReg << " = call i8* @bery_string_from_literal(i8* " << rawReg << ")\n";
-            return objReg;
+        auto* lit    = static_cast<StringLitNode*>(node);
+        std::string escaped = escapeLLVMString(lit->value);
+        int len      = lit->value.length() + 1;
+        std::string globalName = "@.str." + std::to_string(strCounter++);
+        globalStrings << globalName << " = private unnamed_addr constant [" << len << " x i8] c\"" << escaped << "\"\n";
+        std::string rawReg = newReg();
+        out << "    " << rawReg << " = getelementptr [" << len << " x i8], [" << len << " x i8]* " << globalName << ", i32 0, i32 0\n";
+        emitBREDecl("declare i8* @bery_string_from_literal(i8*)", "bery_string_from_literal");
+        std::string objReg = newReg();
+        out << "    " << objReg << " = call i8* @bery_string_from_literal(i8* " << rawReg << ")\n";
+        return objReg;
     }
-    if(node->type == NodeType::IDENT){
-        auto* ident = static_cast<IdentNode*>(node);
-        size_t dot = ident->name.find('.');
-        if (dot != std::string::npos) {
-            std::string objName = ident->name.substr(0, dot);
-            std::string prop= ident->name.substr(dot + 1);
-            Symbol& sym = symTable.get(objName);
-            if (prop == "len") {
-                if (sym.type == "string") {
-                    emitBREDecl("declare i64 @bery_string_length(i8*)", "bery_string_length");
-                    std::string strReg = newReg();
-                    out << "    " << strReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
-                    std::string lenReg = newReg();
-                    out << "    " << lenReg << " = call i64 @bery_string_length(i8* " << strReg << ")\n";
-                    std::string truncReg = newReg();
-                    out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
-                    return truncReg;
-                }
-                if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
-                    emitBREDecl("declare i64 @bery_array_length(i8*)", "bery_array_length");
-                    std::string arrReg = newReg();
-                    out << "    " << arrReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
-                    std::string lenReg = newReg();
-                    out << "    " << lenReg << " = call i64 @bery_array_length(i8* " << arrReg << ")\n";
-                    std::string truncReg = newReg();
-                    out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
-                    return truncReg;
-                }
+
+    return "0";
+}
+
+std::string CodeGen::genIdentExpr(ASTNode* node, const std::string& expectedType, std::ostream& out) {
+    auto* ident = static_cast<IdentNode*>(node);
+
+    size_t dot = ident->name.find('.');
+    if (dot != std::string::npos) {
+        std::string objName = ident->name.substr(0, dot);
+        std::string prop    = ident->name.substr(dot + 1);
+        Symbol& sym = symTable.get(objName);
+
+        if (prop == "len") {
+            if (sym.type == "string") {
+                emitBREDecl("declare i64 @bery_string_length(i8*)", "bery_string_length");
+                std::string strReg = emitLoad("i8*", sym.llvmRegister, out);
+                std::string lenReg = newReg();
+                out << "    " << lenReg << " = call i64 @bery_string_length(i8* " << strReg << ")\n";
+                return emitSext("i64", lenReg, "i32", out);
+            }
+            if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
+                emitBREDecl("declare i64 @bery_array_length(i8*)", "bery_array_length");
+                std::string arrReg = emitLoad("i8*", sym.llvmRegister, out);
+                std::string lenReg = newReg();
+                out << "    " << lenReg << " = call i64 @bery_array_length(i8* " << arrReg << ")\n";
+                std::string truncReg = newReg();
+                out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
+                return truncReg;
             }
         }
-        Symbol& sym = symTable.get(ident->name);
-        std::string realType = sym.type;
-        if (realType.back() == ']') {
-            realType = realType.substr(0, realType.find('['));
-        }
-        
-        std::string realLT = llvmType(realType);
-        std::string reg = newReg();
-        std::string memoryPtr = sym.llvmRegister;
-        out << "    " << reg << " = load " << realLT << ", " << realLT << "* " << memoryPtr << "\n";
-        bool isParentFloat = (expectedType == "float" || expectedType == "double");
-        if (isParentFloat && (realType == "int" || realType == "bigint")) {
-            std::string castReg = newReg();
-            out << "    " << castReg << " = sitofp " << realLT << " " << reg << " to " << llvmType(expectedType) << "\n";
-            return castReg;
-        }
-        
+    }
+
+    Symbol& sym = symTable.get(ident->name);
+    std::string realType = sym.type;
+    if (realType.back() == ']')
+        realType = realType.substr(0, realType.find('['));
+
+    std::string realLT = llvmType(realType);
+    std::string reg    = emitLoad(realLT, sym.llvmRegister, out);
+
+    bool isParentFloat = (expectedType == "float" || expectedType == "double");
+    if (isParentFloat && (realType == "int" || realType == "bigint")) {
+        std::string castReg = newReg();
+        out << "    " << castReg << " = sitofp " << realLT << " " << reg << " to " << llvmType(expectedType) << "\n";
+        return castReg;
+    }
+    return reg;
+}
+
+std::string CodeGen::genUnaryExpr(ASTNode* node, const std::string& expectedType, std::ostream& out) {
+    auto* unary = static_cast<UnaryExprNode*>(node);
+    std::string lt      = llvmType(expectedType);
+    bool isFloat        = (expectedType == "float" || expectedType == "double");
+
+    if (unary->optr == "-" || unary->optr == "!" || unary->optr == "~") {
+        std::string opReg = genExpression(unary->operand.get(), expectedType, out);
+        std::string reg   = newReg();
+        if (unary->optr == "-")
+            out << "    " << reg << " = " << (isFloat ? "fsub " : "sub ") << lt << " " << (isFloat ? "0.0" : "0") << ", " << opReg << "\n";
+        else if (unary->optr == "!")
+            out << "    " << reg << " = xor i1 " << opReg << ", 1\n";
+        else
+            out << "    " << reg << " = xor " << lt << " " << opReg << ", -1\n";
         return reg;
     }
-    if(node->type == NodeType::GROUPED_EXPR){
-        auto* group = static_cast<GroupedExprNode*>(node);
-        return genExpression(group->expression.get(), expectedType, out);
+
+    if (unary->operand->type != NodeType::IDENT) return "0";
+    auto* ident         = static_cast<IdentNode*>(unary->operand.get());
+    std::string memPtr  = symTable.get(ident->name).llvmRegister;
+    std::string oldReg  = genExpression(unary->operand.get(), expectedType, out);
+    std::string newReg_ = newReg();
+    std::string one     = isFloat ? "1.0" : "1";
+    std::string opIns   = (unary->optr == "++" || unary->optr == "post++")
+                            ? (isFloat ? "fadd " : "add ")
+                            : (isFloat ? "fsub " : "sub ");
+    out << "    " << newReg_ << " = " << opIns << lt << " " << oldReg << ", " << one << "\n";
+    emitStore(lt, newReg_, memPtr, out);
+    return (unary->optr == "post++" || unary->optr == "post--") ? oldReg : newReg_;
+}
+
+std::string CodeGen::genBetweenExpr(ASTNode* node, std::ostream& out) {
+    auto* bet           = static_cast<BetweenExprNode*>(node);
+    std::string opLT    = llvmType(bet->opType);
+    bool isFloat        = (bet->opType == "float" || bet->opType == "double");
+
+    std::string tReg    = genExpression(bet->value.get(), bet->opType, out);
+    std::string lReg    = genExpression(bet->lower.get(), bet->opType, out);
+    std::string uReg    = genExpression(bet->upper.get(), bet->opType, out);
+
+    std::string cmp1    = newReg();
+    std::string cmp2    = newReg();
+    out << "    " << cmp1 << " = " << (isFloat ? "fcmp oge " : "icmp sge ") << opLT << " " << tReg << ", " << lReg << "\n";
+    out << "    " << cmp2 << " = " << (isFloat ? "fcmp ole " : "icmp sle ") << opLT << " " << tReg << ", " << uReg << "\n";
+
+    std::string andReg  = newReg();
+    out << "    " << andReg << " = and i1 " << cmp1 << ", " << cmp2 << "\n";
+
+    if (bet->isNegated) {
+        std::string notReg = newReg();
+        out << "    " << notReg << " = xor i1 " << andReg << ", 1\n";
+        return notReg;
     }
-    if(node->type== NodeType::UNARY_EXPR){
-        auto* unary = static_cast<UnaryExprNode*>(node);
-        if(unary->optr == "-" || unary->optr == "!" || unary->optr == "~"){
-            std::string opreg = genExpression(unary->operand.get(), expectedType, out);
-            std::string reg = newReg();
-            
-            if(unary->optr == "-"){
-                out << "    " << reg << " = " << (isFloat?"fsub ":"sub ") << lt << " " << (isFloat?"0.0":"0") << ", " << opreg << "\n";
-            }
-            else if(unary->optr == "!"){
-                out << "    " << reg << " = xor i1 " << opreg << ", 1\n";
+    return andReg;
+}
 
-            }
-            else if(unary->optr == "~"){
-                out << "    " << reg << " = xor " << lt << " " << opreg << ", -1\n";
-            }
-            return reg;
-
+std::string CodeGen::genBinaryExpr(ASTNode* node, const std::string& expectedType, std::ostream& out) {
+    auto* binary     = static_cast<BinaryExprNode*>(node);
+    std::string opLT = llvmType(binary->opType);
+    bool isOpFloat   = (binary->opType == "float" || binary->opType == "double");
+    if (binary->opType == "string") {
+        std::string lReg = genExpression(binary->left.get(),  "string", out);
+        std::string rReg = genExpression(binary->right.get(), "string", out);
+        if (binary->optr == "+") {
+            emitBREDecl("declare i8* @bery_string_concat(i8*, i8*)", "bery_string_concat");
+            std::string res = newReg();
+            out << "    " << res << " = call i8* @bery_string_concat(i8* " << lReg << ", i8* " << rReg << ")\n";
+            return res;
         }
-        if (unary->optr == "--" || unary->optr == "++" || unary->optr == "post++" || unary->optr == "post--") {
-            if (unary->operand->type != NodeType::IDENT) return "0";
-            auto* ident = static_cast<IdentNode*>(unary->operand.get());
-
-            std::string memoryPtr = symTable.get(ident->name).llvmRegister;
-            std::string oldvalreg = genExpression(unary->operand.get(), expectedType, out);
-            std::string newvalreg = newReg();
-            std::string one = isFloat ? "1.0" : "1";
-            std::string opins;
-            if (unary->optr == "++" || unary->optr == "post++") {
-                opins = isFloat ? "fadd " : "add ";
-            } else {
-                opins = isFloat ? "fsub " : "sub ";
-            }
-            out << "    " << newvalreg << " = " << opins << lt << " " << oldvalreg << ", " << one << "\n";
-            out << "    store " << lt << " " << newvalreg << ", " << lt << "* " << memoryPtr << "\n";
-            if (unary->optr == "post++" || unary->optr == "post--") {
-                return oldvalreg;
-            } else {
-                return newvalreg;
-            }
+        emitBREDecl("declare i1 @bery_string_equals(i8*, i8*)", "bery_string_equals");
+        std::string eqReg = newReg();
+        out << "    " << eqReg << " = call i1 @bery_string_equals(i8* " << lReg << ", i8* " << rReg << ")\n";
+        if (binary->optr == "!=") {
+            std::string neqReg = newReg();
+            out << "    " << neqReg << " = xor i1 " << eqReg << ", 1\n";
+            return neqReg;
         }
+        return eqReg;
     }
-    if (node->type == NodeType::BETWEEN_EXPR) {
-        auto* bet = static_cast<BetweenExprNode*>(node);
-
-        std::string operatorLLVMtype = llvmType(bet->opType);
-        bool isFloatingPoint = (bet->opType == "float" || bet->opType == "double");
-
-        std::string tReg = genExpression(bet->value.get(), bet->opType, out);
-        std::string lReg = genExpression(bet->lower.get(), bet->opType, out);
-        std::string uReg = genExpression(bet->upper.get(), bet->opType, out);
-
-        std::string comparison1 = newReg();
-        if (isFloatingPoint) {
-            out << "    " << comparison1 << " = fcmp oge " << operatorLLVMtype << " "<< tReg << ", " << lReg << "\n";
-        } else {out << "    " << comparison1 << " = icmp sge " << operatorLLVMtype << " "<< tReg << ", " << lReg << "\n";
-        }
-        std::string comparison2 = newReg(); 
-        if (isFloatingPoint) {
-            out << "    " << comparison2 << " = fcmp ole " << operatorLLVMtype << " "<< tReg << ", " << uReg << "\n"; // <--- FIXED THIS LINE
+    if (binary->optr == "&&" || binary->optr == "||") {
+        std::string resAlloc = emitAlloca("i1", out);
+        std::string lReg     = genExpression(binary->left.get(), "bool", out);
+        emitStore("i1", lReg, resAlloc, out);
+        int id = ++regCounter;
+        std::string rightBlk = "logic_right_" + std::to_string(id);
+        std::string endBlk   = "logic_end_"   + std::to_string(id);
+        if (binary->optr == "&&")
+            out << "    br i1 " << lReg << ", label %" << rightBlk << ", label %" << endBlk << "\n";
+        else
+            out << "    br i1 " << lReg << ", label %" << endBlk << ", label %" << rightBlk << "\n";
+        out << "\n" << rightBlk << ":\n";
+        std::string rReg = genExpression(binary->right.get(), "bool", out);
+        emitStore("i1", rReg, resAlloc, out);
+        out << "    br label %" << endBlk << "\n";
+        out << "\n" << endBlk << ":\n";
+        return emitLoad("i1", resAlloc, out);
+    }
+    if (binary->optr == "**") {
+        std::string lReg = genExpression(binary->left.get(),  binary->opType, out);
+        std::string rReg = genExpression(binary->right.get(), binary->opType, out);
+        std::string res  = newReg();
+        if (isOpFloat) {
+            if (binary->opType == "float") {
+                std::string ld = newReg(), rd = newReg(), pw = newReg();
+                out << "    " << ld  << " = fpext float " << lReg << " to double\n";
+                out << "    " << rd  << " = fpext float " << rReg << " to double\n";
+                out << "    " << pw  << " = call double @llvm.pow.f64(double " << ld << ", double " << rd << ")\n";
+                out << "    " << res << " = fptrunc double " << pw << " to float\n";
+            } else {
+                out << "    " << res << " = call double @llvm.pow.f64(double " << lReg << ", double " << rReg << ")\n";
+            }
         } else {
-            out << "    " << comparison2 << " = icmp sle " << operatorLLVMtype << " "<< tReg << ", " << uReg << "\n"; // <--- FIXED THIS LINE
+            std::string ld = newReg(), rd = newReg(), pw = newReg();
+            out << "    " << ld  << " = sitofp " << opLT << " " << lReg << " to double\n";
+            out << "    " << rd  << " = sitofp " << opLT << " " << rReg << " to double\n";
+            out << "    " << pw  << " = call double @llvm.pow.f64(double " << ld << ", double " << rd << ")\n";
+            out << "    " << res << " = fptosi double " << pw << " to " << opLT << "\n";
         }
-
-        std::string andReg = newReg();
-        out << "    " << andReg << " = and i1 " << comparison1 << ", " << comparison2 << "\n"; // <--- FIXED THIS LINE
-
-        if (bet->isNegated) {
-            std::string notBetweenReg = newReg();
-            out << "    " << notBetweenReg << " = xor i1 " << andReg << ", 1\n";
-            return notBetweenReg; 
-        }
-        return andReg;
+        return res;
     }
-    if(node->type == NodeType::BINARY_EXPR){
-        auto* binary = static_cast<BinaryExprNode*>(node);
-        std::string leftType = inferType(binary->left.get());
-        if (leftType == "string") {
-            std::string leftReg = genExpression(binary->left.get(),  "string", out);
-            std::string rightReg = genExpression(binary->right.get(), "string", out);
-
-            if (binary->optr == "+") {
-                emitBREDecl("declare i8* @bery_string_concat(i8*, i8*)", "bery_string_concat");
-                std::string resReg = newReg();
-                out << "    " << resReg << " = call i8* @bery_string_concat(i8* " << leftReg << ", i8* " << rightReg << ")\n";
-                return resReg;
-            }
-            if (binary->optr == "==" || binary->optr == "!="  ) {
-                emitBREDecl("declare i1 @bery_string_equals(i8*, i8*)", "bery_string_equals");
-                std::string eqReg = newReg();
-                out << "    " << eqReg << " = call i1 @bery_string_equals(i8* " << leftReg << ", i8* " << rightReg << ")\n";
-                if (binary->optr == "!=") {
-                    std::string neqReg = newReg();
-                    out << "    " << neqReg << " = xor i1 " << eqReg << ", 1\n";
-                    return neqReg;
-                }
-                return eqReg;
-            }
-        }
-        if (binary->optr == "&&" || binary->optr == "||") {
-            std::string resultAllocation = newReg();
-            out << "    " << resultAllocation << " = alloca i1\n";
-
-            std::string leftReg = genExpression(binary->left.get(), "bool", out);
-            out << "    store i1 " << leftReg << ", i1* " << resultAllocation << "\n";
-
-            int blockId = ++regCounter;
-            std::string rightBlock = "logic_right_" + std::to_string(blockId);
-            std::string endBlock = "logic_end_" + std::to_string(blockId);
-
-            if (binary->optr == "&&") {
-                out << "    br i1 " << leftReg << ", label %" << rightBlock << ", label %" << endBlock <<"\n";
-            } else  {
-                out << "    br i1 " << leftReg << ", label %" << endBlock << ", label %" << rightBlock <<"\n";
-            }
-
-            out << "\n" << rightBlock << ":\n";
-            std::string rightReg = genExpression(binary->right.get(), "bool", out);
-            out << "    store i1 " << rightReg << ", i1* " << resultAllocation << "\n";
-            out << "    br label %" << endBlock <<"\n";
-
-            out << "\n" << endBlock << ":\n";
-            std::string finalReg = newReg();
-            out << "    " << finalReg << " = load i1, i1* " << resultAllocation << "\n";
-
-            return finalReg;
-        }
-        std::string opLT = llvmType(binary->opType);
-        bool isOpFloat = (binary->opType == "float" || binary->opType == "double");
-
-        std::string leftReg = genExpression(binary->left.get(), binary->opType, out);
-        std::string rightReg = genExpression(binary->right.get(), binary->opType, out);
-        std::string resultReg = newReg();
-
-        if(isOpFloat){
-            if(binary->optr == "+"){
-                out << "    " << resultReg << " = fadd " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "-"){
-                out << "    " << resultReg << " = fsub " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "*"){
-                out << "    " << resultReg << " = fmul " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "/"){
-                out << "    " << resultReg << " = fdiv " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "**"){
-                if(expectedType == "float"){
-                    std::string leftDouble = newReg();
-                    std::string rightDouble = newReg();
-                    out << "    " << leftDouble << " = fpext float " << leftReg << " to double\n";
-                    out << "    " << rightDouble << " = fpext float " << rightReg << " to double\n";
-                    
-                    std::string powReg = newReg();
-                    out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
-                    out << "    " << resultReg << " = fptrunc double " << powReg << " to float\n";
-                }else{
-                    out << "    " << resultReg << " = call double @llvm.pow.f64(double " << leftReg << ", double " << rightReg << ")\n";
-                }
-            }else if (binary->optr == "==") {
-                out << "    " << resultReg << " = fcmp oeq " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "!=") {
-                out << "    " << resultReg << " = fcmp one " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == ">") {
-                out << "    " << resultReg << " = fcmp ogt " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "<") {
-                out << "    " << resultReg << " = fcmp olt " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == ">=") {
-                out << "    " << resultReg << " = fcmp oge " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "<=") {
-                out << "    " << resultReg << " = fcmp ole " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }
-            else{
-                return "0";
-            }
-        }else{
-            if(binary->optr == "+"){
-                out << "    " << resultReg << " = add " << lt << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "-"){
-                out << "    " << resultReg << " = sub " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "*"){
-                out << "    " << resultReg << " = mul " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "/"){
-                out << "    " << resultReg << " = sdiv " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "%"){
-                out << "    " << resultReg << " = srem " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if(binary->optr == "**"){
-                std::string leftDouble = newReg();
-                std::string rightDouble = newReg();
-
-                out << "    " << leftDouble << " = sitofp " << opLT << " " << leftReg << " to double\n";
-                out << "    " << rightDouble << " = sitofp " << opLT << " " << rightReg << " to double\n";
-
-                std::string powReg = newReg();
-
-                out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
-                out << "    " << resultReg << " = fptosi double " << powReg << " to " << opLT << "\n";
-            } else if (binary->optr == "<<") {
-                out << "    " << resultReg << " = shl " << opLT << " " << leftReg << ", " << rightReg << "\n"; 
-            } else if (binary->optr == ">>") {
-                out << "    " << resultReg << " = ashr "<< opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "&") {
-                out << "    " << resultReg << " = and " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "|") {
-                out << "    " << resultReg << " = or "  << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "^") {
-                out << "    " << resultReg << " = xor " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }else if (binary->optr == "==") {
-                out << "    " << resultReg << " = icmp eq " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "!=") {
-                out << "    " << resultReg << " = icmp ne " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == ">") {
-                out << "    " << resultReg << " = icmp sgt " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "<") {
-                out << "    " << resultReg << " = icmp slt " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == ">=") {
-                out << "    " << resultReg << " = icmp sge " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            } else if (binary->optr == "<=") {
-                out << "    " << resultReg << " = icmp sle " << opLT << " " << leftReg << ", " << rightReg << "\n";
-            }
-            else{
-                return "0";
-            }
-        }
-
-        std::string finalReg = resultReg;
-        bool expectFloat = (expectedType == "float" || expectedType == "double");
-        bool gotInt = (binary->opType == "int" || binary->opType == "bigint");
-
-        if (expectFloat && gotInt) {
-            finalReg = newReg();
-            out << "    " << finalReg << " = sitofp " << llvmType(binary->opType) << " " << resultReg << " to " << llvmType(expectedType) << "\n";
-        }
-
-        return finalReg;
+    std::string lReg   = genExpression(binary->left.get(),  binary->opType, out);
+    std::string rReg   = genExpression(binary->right.get(), binary->opType, out);
+    std::string resReg = emitBinaryOp(binary->optr, opLT, isOpFloat, lReg, rReg, out);
+    if (resReg == "0") return "0";
+    bool expectFloat = (expectedType == "float" || expectedType == "double");
+    bool gotInt      = (binary->opType == "int"  || binary->opType == "bigint");
+    if (expectFloat && gotInt) {
+        std::string promoted = newReg();
+        out << "    " << promoted << " = sitofp " << opLT << " " << resReg << " to " << llvmType(expectedType) << "\n";
+        return promoted;
     }
-    if (node->type == NodeType::TERNARY_EXPR) {
-       auto* tern = static_cast<TernaryExprNode*>(node);
-       std::string llvmResType = llvmType(tern->resolvedType);
-       std::string resultAlloc = newReg();
-       out << "    " << resultAlloc << " = alloca " << llvmResType << "\n";
+    return resReg;
+}
 
-       std::string condReg = genExpression(tern->condition.get(), "bool", out);
-       int blockId = ++regCounter;
-       std::string trueBlock = "tern_true_" + std::to_string(blockId);
-       std::string falseBlock = "tern_false_" + std::to_string(blockId);
-       std::string endBlock = "tern_end_" + std::to_string(blockId);
+std::string CodeGen::genTernaryExpr(ASTNode* node, std::ostream& out) {
+    auto* tern           = static_cast<TernaryExprNode*>(node);
+    std::string llvmRT   = llvmType(tern->resolvedType);
+    std::string resAlloc = emitAlloca(llvmRT, out);
+    std::string condReg  = genExpression(tern->condition.get(), "bool", out);
 
-       out << "    br i1 " << condReg << ", label %" << trueBlock << ", label %" << falseBlock << "\n";
+    int id = ++regCounter;
+    std::string trueBlk  = "tern_true_"  + std::to_string(id);
+    std::string falseBlk = "tern_false_" + std::to_string(id);
+    std::string endBlk   = "tern_end_"   + std::to_string(id);
 
-       out << "\n" << trueBlock << ":\n";
-       std::string tReg = genExpression(tern->trueExpr.get(), tern->resolvedType, out);
-       out << "    store " << llvmResType << " " << tReg << ", " << llvmResType << "* " << resultAlloc << "\n";
-       out << "    br label %" << endBlock << "\n";
+    out << "    br i1 " << condReg << ", label %" << trueBlk << ", label %" << falseBlk << "\n";
 
+    out << "\n" << trueBlk << ":\n";
+    std::string tReg = genExpression(tern->trueExpr.get(), tern->resolvedType, out);
+    emitStore(llvmRT, tReg, resAlloc, out);
+    out << "    br label %" << endBlk << "\n";
 
-       out << "\n" << falseBlock << ":\n";
-       std::string fReg = genExpression(tern->falseExpr.get(), tern->resolvedType, out);
-       out << "    store " << llvmResType << " " << fReg << ", " << llvmResType << "* " << resultAlloc << "\n";
-       out << "    br label %" << endBlock << "\n";
+    out << "\n" << falseBlk << ":\n";
+    std::string fReg = genExpression(tern->falseExpr.get(), tern->resolvedType, out);
+    emitStore(llvmRT, fReg, resAlloc, out);
+    out << "    br label %" << endBlk << "\n";
 
-       out << "\n" << endBlock << ":\n";
-       std::string finalReg = newReg();
-       out << "    " << finalReg << " = load " << llvmResType << ", " << llvmResType << "* " << resultAlloc << "\n";
-       return finalReg;
-    }
-    if (node->type == NodeType::ASSIGNMENT_EXPR) {
-        auto* assign = static_cast<AssignmentExprNode*>(node);
-        std::string targetLT;
-        std::string memoryPtr;
-        std::string expectedType;
+    out << "\n" << endBlk << ":\n";
+    return emitLoad(llvmRT, resAlloc, out);
+}
 
-        if (assign->target->type == NodeType::IDENT) {
-            auto* ident = static_cast<IdentNode*>(assign->target.get());
-            Symbol& sym = symTable.get(ident->name);
-            targetLT = llvmType(sym.type);
-            memoryPtr = sym.llvmRegister;
-            expectedType = sym.type;
-             if (sym.type == "string" && assign->op == "=") {
-                emitBREDecl("declare i8* @bery_string_copy(i8*)", "bery_string_copy");
-                std::string srcReg = genExpression(assign->value.get(), "string", out);
-                std::string copyReg = newReg();
-                out << "    " << copyReg << " = call i8* @bery_string_copy(i8* " << srcReg << ")\n";
-                out << "    store i8* " << copyReg << ", i8** " << memoryPtr << "\n";
-                return copyReg;
-            }
-        } else if (assign->target->type == NodeType::INDEX_EXPR) {
-            auto* idxNode = static_cast<IndexExprNode*>(assign->target.get());
-            Symbol& sym = symTable.get(idxNode->name);
-            if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
-                std::string elemType = sym.type.substr(6, sym.type.size() - 7);
-                std::string lt = llvmType(elemType);
-                emitBREDecl("declare void @bery_array_set(i8*, i64, i8*)", "bery_array_set");
-                std::string arrReg = newReg();
-                out << "    " << arrReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
+std::string CodeGen::genAssignmentExpr(ASTNode* node, std::ostream& out) {
+    auto* assign        = static_cast<AssignmentExprNode*>(node);
+    std::string targetLT, memPtr, targetBerryType;
 
-                std::string idxReg = genExpression(idxNode->indices[0].get(), "int", out);
-                std::string idxExt = newReg();
-                out << "    " << idxExt << " = sext i32 " << idxReg << " to i64\n";
-                std::string valReg = genExpression(assign->value.get(), elemType, out);
+    if (assign->target->type == NodeType::IDENT) {
+        auto* ident      = static_cast<IdentNode*>(assign->target.get());
+        Symbol& sym      = symTable.get(ident->name);
+        targetLT         = llvmType(sym.type);
+        memPtr           = sym.llvmRegister;
+        targetBerryType  = sym.type;
 
-                std::string slotReg = newReg();
-                out << "    " << slotReg << " = alloca " << lt << "\n";
-                out << "    store " << lt << " " << valReg << ", " << lt << "* " << slotReg << "\n";
-                std::string castReg = newReg();
-                out << "    " << castReg << " = bitcast " << lt << "* " << slotReg << " to i8*\n";
-                out << "    call void @bery_array_set(i8* " << arrReg << ", i64 " << idxExt << ", i8* " << castReg << ")\n";
-                return valReg;
-            }
-            
-            std::string baseType = sym.type.substr(0, sym.type.find('['));
-            targetLT = llvmType(baseType);
-            expectedType = baseType;
-            std::string arrType = sym.llvmAllocType;
-            std::vector<std::string> indexRegisters;
-            for (auto& idx : idxNode->indices) {
-                indexRegisters.push_back(genExpression(idx.get(), "int", out));
-            }
-
-            memoryPtr = newReg();
-            out << "    " << memoryPtr << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
-            for (const std::string& reg : indexRegisters) {
-                out << ", i32 " << reg;
-            }
-            out << "\n";
+        if (sym.type == "string" && assign->op == "=") {
+            emitBREDecl("declare i8* @bery_string_copy(i8*)", "bery_string_copy");
+            std::string srcReg  = genExpression(assign->value.get(), "string", out);
+            std::string copyReg = newReg();
+            out << "    " << copyReg << " = call i8* @bery_string_copy(i8* " << srcReg << ")\n";
+            emitStore("i8*", copyReg, memPtr, out);
+            return copyReg;
         }
-        std::string valReg = genExpression(assign->value.get(), expectedType, out);
-        if (assign->op == "=") {
-            out << "    store " << targetLT << " " << valReg << ", " << targetLT << "* " << memoryPtr << "\n";
-            return valReg;
-        } else {
-            std::string currentVal = newReg();
-            out << "    " << currentVal << " = load " << targetLT << ", " << targetLT << "* " << memoryPtr << "\n";
-            
-            std::string resultReg = newReg();
-            bool isFloat = (expectedType == "float" || expectedType == "double");
 
-            if (isFloat) {
-                if (assign->op == "+=") out << "    " << resultReg << " = fadd " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "-=") out << "    " << resultReg << " = fsub " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "*=") out << "    " << resultReg << " = fmul " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "/=") out << "    " << resultReg << " = fdiv " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "**=") {
-                    std::string leftDouble = newReg();
-                    std::string rightDouble = newReg();
-                    if (expectedType == "float") {
-                        out << "    " << leftDouble << " = fpext float " << currentVal << " to double\n";
-                        out << "    " << rightDouble << " = fpext float " << valReg << " to double\n";
-                        std::string powReg = newReg();
-                        out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
-                        out << "    " << resultReg << " = fptrunc double " << powReg << " to float\n";
-                    } else {
-                        out << "    " << resultReg << " = call double @llvm.pow.f64(double " << currentVal << ", double " << valReg << ")\n";
-                    }
-                }
-            } else {
-                if (assign->op == "+=") out << "    " << resultReg << " = add " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "-=") out << "    " << resultReg << " = sub " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "*=") out << "    " << resultReg << " = mul " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "/=") out << "    " << resultReg << " = sdiv " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "%=") out << "    " << resultReg << " = srem " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "<<=") out << "    " << resultReg << " = shl " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == ">>=") out << "    " << resultReg << " = ashr " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "&=") out << "    " << resultReg << " = and " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "|=") out << "    " << resultReg << " = or " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "^=") out << "    " << resultReg << " = xor " << targetLT << " " << currentVal << ", " << valReg << "\n";
-                else if (assign->op == "**=") {
-                    std::string leftDouble = newReg();
-                    std::string rightDouble = newReg();
-                    out << "    " << leftDouble << " = sitofp " << targetLT << " " << currentVal << " to double\n";
-                    out << "    " << rightDouble << " = sitofp " << targetLT << " " << valReg << " to double\n";
-                    std::string powReg = newReg();
-                    out << "    " << powReg << " = call double @llvm.pow.f64(double " << leftDouble << ", double " << rightDouble << ")\n";
-                    out << "    " << resultReg << " = fptosi double " << powReg << " to " << targetLT << "\n";
-                }
-            }
-            
-            out << "    store " << targetLT << " " << resultReg << ", " << targetLT << "* " << memoryPtr << "\n";
-            return resultReg;
-        }
-    }
-    if (node->type == NodeType::CAST_EXPR) {
-        auto* castNode = static_cast<CastExprNode*>(node);
-        std::string srcReg = genExpression(castNode->expr.get(), castNode->srcType, out);
-        
-        std::string sType = castNode->srcType;
-        std::string tType = castNode->targetType;
+    } else if (assign->target->type == NodeType::INDEX_EXPR) {
+        auto* idxNode   = static_cast<IndexExprNode*>(assign->target.get());
+        Symbol& sym     = symTable.get(idxNode->name);
 
-        if (sType == tType) return srcReg;
-
-        std::string sLLVM = llvmType(sType);
-        std::string tLLVM = llvmType(tType);
-        std::string resReg = newReg();
-
-        bool srcIsFloat = (sType == "float" || sType == "double");
-        bool tgtIsFloat = (tType == "float" || tType == "double");
-
-        if (srcIsFloat && !tgtIsFloat) {
-            out << "    " << resReg << " = fptosi " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
-        } 
-        else if (!srcIsFloat && tgtIsFloat) {
-            out << "    " << resReg << " = sitofp " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
-        } 
-        else if (srcIsFloat && tgtIsFloat) {
-            if (sType == "float" && tType == "double")
-                out << "    " << resReg << " = fpext float " << srcReg << " to double\n";
-            else
-                out << "    " << resReg << " = fptrunc double " << srcReg << " to float\n";
-        }
-        else {
-            int sWidth = (sType == "bigint") ? 64 : (sType == "int" ? 32 : (sType == "char" ? 8 : 1));
-            int tWidth = (tType == "bigint") ? 64 : (tType == "int" ? 32 : (tType == "char" ? 8 : 1));
-
-            if (sWidth > tWidth) {
-                out << "    " << resReg << " = trunc " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
-            } else if (sWidth < tWidth) {
-                if (sType == "bool") {
-                    out << "    " << resReg << " = zext " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
-                } else {
-                    out << "    " << resReg << " = sext " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
-                }
-            } else {
-                return srcReg; 
-            }
-        }
-        return resReg;
-    }
-    if (node->type == NodeType::INDEX_EXPR) {
-        auto* idx = static_cast<IndexExprNode*>(node);
-        Symbol& sym = symTable.get(idx->name);
-        if (sym.type.substr(0, 6) == "array<") {
+        if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
             std::string elemType = sym.type.substr(6, sym.type.size() - 7);
-            std::string lt = llvmType(elemType);
-            emitBREDecl("declare i8* @bery_array_get(i8*, i64)", "bery_array_get");
-            std::string arrReg = newReg();
-            out << "    " << arrReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
-            std::string idxReg = genExpression(idx->indices[0].get(), "int", out);
-            std::string idxExt = newReg();
-            out << "    " << idxExt << " = sext i32 " << idxReg << " to i64\n";
-            std::string rawReg = newReg();
-            out << "    " << rawReg << " = call i8* @bery_array_get(i8* " << arrReg << ", i64 " << idxExt << ")\n";
-            std::string castReg = newReg();
-            out << "    " << castReg << " = bitcast i8* " << rawReg << " to " << lt << "*\n";
-
-            std::string valReg = newReg();
-            out << "    " << valReg << " = load " << lt << ", " << lt << "* " << castReg << "\n";
+            std::string lt       = llvmType(elemType);
+            emitBREDecl("declare void @bery_array_set(i8*, i64, i8*)", "bery_array_set");
+            std::string arrReg   = emitLoad("i8*", sym.llvmRegister, out);
+            std::string idxReg   = genExpression(idxNode->indices[0].get(), "int", out);
+            std::string idxExt   = emitSext("i32", idxReg, "i64", out);
+            std::string valReg   = genExpression(assign->value.get(), elemType, out);
+            std::string castReg  = emitBoxValue(lt, valReg, out);
+            out << "    call void @bery_array_set(i8* " << arrReg << ", i64 " << idxExt << ", i8* " << castReg << ")\n";
             return valReg;
         }
-        auto* idxNode = static_cast<IndexExprNode*>(node);
-        
+
         std::string baseType = sym.type.substr(0, sym.type.find('['));
-        std::string lt = llvmType(baseType);
-        std::string arrType = sym.llvmAllocType;
-        std::vector<std::string> indexRegisters;
-        for (auto& idx : idxNode->indices) {
-            indexRegisters.push_back(genExpression(idx.get(), "int", out));
-        }
-
-        std::string ptrReg = newReg();
-        out << "    " << ptrReg << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
-
-        for (const std::string& reg : indexRegisters) {
-            out << ", i32 " << reg;
-        }
+        targetLT             = llvmType(baseType);
+        targetBerryType      = baseType;
+        std::string arrType  = sym.llvmAllocType;
+        std::vector<std::string> idxRegs;
+        for (auto& idx : idxNode->indices)
+            idxRegs.push_back(genExpression(idx.get(), "int", out));
+        memPtr = newReg();
+        out << "    " << memPtr << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
+        for (auto& r : idxRegs) out << ", i32 " << r;
         out << "\n";
-        
-        std::string valReg = newReg();
-        out << "    " << valReg << " = load " << lt << ", " << lt << "* " << ptrReg << "\n";
+    }
+
+    std::string valReg = genExpression(assign->value.get(), targetBerryType, out);
+
+    if (assign->op == "=") {
+        emitStore(targetLT, valReg, memPtr, out);
         return valReg;
     }
-    if (node->type == NodeType::CALL_EXPR) {
-        auto* call = static_cast<CallExprNode*>(node);
+    
+    bool isFloat        = (targetBerryType == "float" || targetBerryType == "double");
+    std::string curVal  = emitLoad(targetLT, memPtr, out);
+    std::string resReg;
 
-        static const std::unordered_set<std::string> brePrintFns = {
-            "print", "println", "inputInt", "inputBigInt", "inputFloat",
-            "inputDouble", "inputBool", "inputChar", "inputString"
-        };
-        if (brePrintFns.count(call->callee)) {
-            return genBREPrintCall(node, out);
-        }
-        size_t dot = call->callee.find('.');
-        if (dot != std::string::npos) {
-            std::string objName = call->callee.substr(0, dot);
-            std::string method  = call->callee.substr(dot + 1);
-            Symbol& sym = symTable.get(objName);
-
-            if (sym.type == "string") {
-                std::string strReg = newReg();
-                out << "    " << strReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
-
-                if (method == "len") {
-                    emitBREDecl("declare i64 @bery_string_length(i8*)", "bery_string_length");
-                    std::string lenReg = newReg();
-                    out << "    " << lenReg << " = call i64 @bery_string_length(i8* " << strReg << ")\n";
-                    std::string truncReg = newReg();
-                    out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
-                    return truncReg;
-                }
-                if (method == "copy") {
-                    emitBREDecl("declare i8* @bery_string_copy(i8*)", "bery_string_copy");
-                    std::string copyReg = newReg();
-                    out << "    " << copyReg << " = call i8* @bery_string_copy(i8* " << strReg << ")\n";
-                    return copyReg;
-                }
-                if (method == "substr") {
-                    emitBREDecl("declare i8* @bery_string_substring(i8*, i64, i64)", "bery_string_substring");
-                    std::string startReg = genExpression(call->arguments[0].get(), "int", out);
-                    std::string endReg   = genExpression(call->arguments[1].get(), "int", out);
-                    std::string startExt = newReg();
-                    std::string endExt   = newReg();
-                    out << "    " << startExt << " = sext i32 " << startReg << " to i64\n";
-                    out << "    " << endExt   << " = sext i32 " << endReg   << " to i64\n";
-                    std::string resReg = newReg();
-                    out << "    " << resReg << " = call i8* @bery_string_substring(i8* " << strReg
-                        << ", i64 " << startExt << ", i64 " << endExt << ")\n";
-                    return resReg;
-                }
+    if (assign->op == "**=") {
+        resReg = newReg();
+        if (isFloat) {
+            if (targetBerryType == "float") {
+                std::string ld = newReg(), rd = newReg(), pw = newReg();
+                out << "    " << ld << " = fpext float " << curVal << " to double\n";
+                out << "    " << rd << " = fpext float " << valReg << " to double\n";
+                out << "    " << pw << " = call double @llvm.pow.f64(double " << ld << ", double " << rd << ")\n";
+                out << "    " << resReg << " = fptrunc double " << pw << " to float\n";
+            } else {
+                out << "    " << resReg << " = call double @llvm.pow.f64(double " << curVal << ", double " << valReg << ")\n";
             }
-
-            if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
-                std::string elemType = sym.type.substr(6, sym.type.size() - 7);
-                std::string lt = llvmType(elemType);
-
-                std::string arrReg = newReg();
-                out << "    " << arrReg << " = load i8*, i8** " << sym.llvmRegister << "\n";
-
-                if (method == "len") {
-                    emitBREDecl("declare i64 @bery_array_length(i8*)", "bery_array_length");
-                    std::string lenReg = newReg();
-                    out << "    " << lenReg << " = call i64 @bery_array_length(i8* " << arrReg << ")\n";
-                    std::string truncReg = newReg();
-                    out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
-                    return truncReg;
-                }
-                if (method == "push") {
-                    emitBREDecl("declare void @bery_array_push(i8*, i8*)", "bery_array_push");
-                    std::string valReg  = genExpression(call->arguments[0].get(), elemType, out);
-                    std::string slotReg = newReg();
-                    out << "    " << slotReg << " = alloca " << lt << "\n";
-                    out << "    store " << lt << " " << valReg << ", " << lt << "* " << slotReg << "\n";
-                    std::string castReg = newReg();
-                    out << "    " << castReg << " = bitcast " << lt << "* " << slotReg << " to i8*\n";
-                    out << "    call void @bery_array_push(i8* " << arrReg << ", i8* " << castReg << ")\n";
-                    return "0";
-                }
-                if (method == "pop") {
-                    emitBREDecl("declare i8* @bery_array_pop(i8*)", "bery_array_pop");
-                    std::string rawReg  = newReg();
-                    out << "    " << rawReg << " = call i8* @bery_array_pop(i8* " << arrReg << ")\n";
-                    std::string castReg = newReg();
-                    out << "    " << castReg << " = bitcast i8* " << rawReg << " to " << lt << "*\n";
-                    std::string valReg  = newReg();
-                    out << "    " << valReg << " = load " << lt << ", " << lt << "* " << castReg << "\n";
-                    return valReg;
-                }
-                if (method == "insert") {
-                    emitBREDecl("declare void @bery_array_insert(i8*, i64, i8*)", "bery_array_insert");
-                    std::string idxReg  = genExpression(call->arguments[0].get(), "int", out);
-                    std::string idxExt  = newReg();
-                    out << "    " << idxExt << " = sext i32 " << idxReg << " to i64\n";
-                    std::string valReg  = genExpression(call->arguments[1].get(), elemType, out);
-                    std::string slotReg = newReg();
-                    out << "    " << slotReg << " = alloca " << lt << "\n";
-                    out << "    store " << lt << " " << valReg << ", " << lt << "* " << slotReg << "\n";
-                    std::string castReg = newReg();
-                    out << "    " << castReg << " = bitcast " << lt << "* " << slotReg << " to i8*\n";
-                    out << "    call void @bery_array_insert(i8* " << arrReg << ", i64 " << idxExt << ", i8* " << castReg << ")\n";
-                    return "0";
-                }
-                if (method == "remove") {
-                    emitBREDecl("declare void @bery_array_remove(i8*, i64)", "bery_array_remove");
-                    std::string idxReg = genExpression(call->arguments[0].get(), "int", out);
-                    std::string idxExt = newReg();
-                    out << "    " << idxExt << " = sext i32 " << idxReg << " to i64\n";
-                    out << "    call void @bery_array_remove(i8* " << arrReg << ", i64 " << idxExt << ")\n";
-                    return "0";
-                }
-            }
-        }
-        if (functions.find(call->callee) == functions.end()) {
-            return "0";
-        }
-        CodeGenFunctionSignature& sig = functions[call->callee];
-        
-        std::string argsStr = "";
-        for (size_t i = 0; i < call->arguments.size(); ++i) {
-            std::string argReg = genExpression(call->arguments[i].get(), sig.paramTypes[i], out);
-            argsStr += llvmType(sig.paramTypes[i]) + " " + argReg;
-            if (i + 1 < call->arguments.size()) argsStr += ", ";
-        }
-        
-        if (sig.returnType == "void") {
-            out << "    call void @" << call->callee << "(" << argsStr << ")\n";
-            return "0";
         } else {
-            std::string resReg = newReg();
-            out << "    " << resReg << " = call " << llvmType(sig.returnType) << " @" << call->callee << "(" << argsStr << ")\n";
-            return resReg;
+            std::string ld = newReg(), rd = newReg(), pw = newReg();
+            out << "    " << ld << " = sitofp " << targetLT << " " << curVal << " to double\n";
+            out << "    " << rd << " = sitofp " << targetLT << " " << valReg << " to double\n";
+            out << "    " << pw << " = call double @llvm.pow.f64(double " << ld << ", double " << rd << ")\n";
+            out << "    " << resReg << " = fptosi double " << pw << " to " << targetLT << "\n";
+        }
+    } else {
+        std::string baseOp = assign->op.substr(0, assign->op.size() - 1);
+        resReg = emitBinaryOp(baseOp, targetLT, isFloat, curVal, valReg, out);
+    }
+
+    emitStore(targetLT, resReg, memPtr, out);
+    return resReg;
+}
+
+std::string CodeGen::genCastExpr(ASTNode* node, std::ostream& out) {
+    auto* castNode      = static_cast<CastExprNode*>(node);
+    std::string srcReg  = genExpression(castNode->expr.get(), castNode->srcType, out);
+    std::string sType   = castNode->srcType;
+    std::string tType   = castNode->targetType;
+    if (sType == tType) return srcReg;
+
+    std::string sLLVM   = llvmType(sType);
+    std::string tLLVM   = llvmType(tType);
+    std::string resReg  = newReg();
+    bool srcFloat       = (sType == "float" || sType == "double");
+    bool tgtFloat       = (tType == "float" || tType == "double");
+
+    if (srcFloat && !tgtFloat)
+        out << "    " << resReg << " = fptosi " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+    else if (!srcFloat && tgtFloat)
+        out << "    " << resReg << " = sitofp " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+    else if (srcFloat && tgtFloat) {
+        if (sType == "float")
+            out << "    " << resReg << " = fpext float " << srcReg << " to double\n";
+        else
+            out << "    " << resReg << " = fptrunc double " << srcReg << " to float\n";
+    } else {
+        int sW = (sType == "bigint") ? 64 : (sType == "int" ? 32 : (sType == "char" ? 8 : 1));
+        int tW = (tType == "bigint") ? 64 : (tType == "int" ? 32 : (tType == "char" ? 8 : 1));
+        if (sW > tW)
+            out << "    " << resReg << " = trunc " << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+        else if (sW < tW)
+            out << "    " << resReg << " = " << (sType == "bool" ? "zext " : "sext ") << sLLVM << " " << srcReg << " to " << tLLVM << "\n";
+        else
+            return srcReg;
+    }
+    return resReg;
+}
+
+std::string CodeGen::genIndexExpr(ASTNode* node, std::ostream& out) {
+    auto* idx           = static_cast<IndexExprNode*>(node);
+    Symbol& sym         = symTable.get(idx->name);
+
+    if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
+        std::string elemType = sym.type.substr(6, sym.type.size() - 7);
+        std::string lt       = llvmType(elemType);
+        emitBREDecl("declare i8* @bery_array_get(i8*, i64)", "bery_array_get");
+        std::string arrReg   = emitLoad("i8*", sym.llvmRegister, out);
+        std::string idxReg   = genExpression(idx->indices[0].get(), "int", out);
+        std::string idxExt   = emitSext("i32", idxReg, "i64", out);
+        std::string rawReg   = newReg();
+        out << "    " << rawReg << " = call i8* @bery_array_get(i8* " << arrReg << ", i64 " << idxExt << ")\n";
+        std::string castReg  = newReg();
+        out << "    " << castReg << " = bitcast i8* " << rawReg << " to " << lt << "*\n";
+        return emitLoad(lt, castReg, out);
+    }
+
+    std::string baseType    = sym.type.substr(0, sym.type.find('['));
+    std::string lt          = llvmType(baseType);
+    std::string arrType     = sym.llvmAllocType;
+    std::vector<std::string> idxRegs;
+    for (auto& i : idx->indices)
+        idxRegs.push_back(genExpression(i.get(), "int", out));
+
+    std::string ptrReg = newReg();
+    out << "    " << ptrReg << " = getelementptr " << arrType << ", " << arrType << "* " << sym.llvmRegister << ", i32 0";
+    for (auto& r : idxRegs) out << ", i32 " << r;
+    out << "\n";
+    return emitLoad(lt, ptrReg, out);
+}
+
+std::string CodeGen::genCallExpr(ASTNode* node, std::ostream& out) {
+    auto* call          = static_cast<CallExprNode*>(node);
+
+    static const std::unordered_set<std::string> breFns = {
+        "print", "println", "inputInt", "inputBigInt", "inputFloat",
+        "inputDouble", "inputBool", "inputChar", "inputString"
+    };
+    if (breFns.count(call->callee))
+        return genBREPrintCall(node, out);
+
+    size_t dot = call->callee.find('.');
+    if (dot != std::string::npos) {
+        std::string objName = call->callee.substr(0, dot);
+        std::string method  = call->callee.substr(dot + 1);
+        Symbol& sym         = symTable.get(objName);
+
+        if (sym.type == "string") {
+            std::string strReg = emitLoad("i8*", sym.llvmRegister, out);
+            if (method == "len") {
+                emitBREDecl("declare i64 @bery_string_length(i8*)", "bery_string_length");
+                std::string lenReg = newReg();
+                out << "    " << lenReg << " = call i64 @bery_string_length(i8* " << strReg << ")\n";
+                std::string truncReg = newReg();
+                out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
+                return truncReg;
+            }
+            if (method == "copy") {
+                emitBREDecl("declare i8* @bery_string_copy(i8*)", "bery_string_copy");
+                std::string copyReg = newReg();
+                out << "    " << copyReg << " = call i8* @bery_string_copy(i8* " << strReg << ")\n";
+                return copyReg;
+            }
+            if (method == "substr") {
+                emitBREDecl("declare i8* @bery_string_substring(i8*, i64, i64)", "bery_string_substring");
+                std::string s0 = genExpression(call->arguments[0].get(), "int", out);
+                std::string s1 = genExpression(call->arguments[1].get(), "int", out);
+                std::string e0 = emitSext("i32", s0, "i64", out);
+                std::string e1 = emitSext("i32", s1, "i64", out);
+                std::string res = newReg();
+                out << "    " << res << " = call i8* @bery_string_substring(i8* " << strReg << ", i64 " << e0 << ", i64 " << e1 << ")\n";
+                return res;
+            }
+        }
+
+        if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
+            std::string elemType = sym.type.substr(6, sym.type.size() - 7);
+            std::string lt       = llvmType(elemType);
+            std::string arrReg   = emitLoad("i8*", sym.llvmRegister, out);
+
+            if (method == "len") {
+                emitBREDecl("declare i64 @bery_array_length(i8*)", "bery_array_length");
+                std::string lenReg = newReg();
+                out << "    " << lenReg << " = call i64 @bery_array_length(i8* " << arrReg << ")\n";
+                std::string truncReg = newReg();
+                out << "    " << truncReg << " = trunc i64 " << lenReg << " to i32\n";
+                return truncReg;
+            }
+            if (method == "push") {
+                emitBREDecl("declare void @bery_array_push(i8*, i8*)", "bery_array_push");
+                std::string valReg  = genExpression(call->arguments[0].get(), elemType, out);
+                std::string castReg = emitBoxValue(lt, valReg, out);
+                out << "    call void @bery_array_push(i8* " << arrReg << ", i8* " << castReg << ")\n";
+                return "0";
+            }
+            if (method == "pop") {
+                emitBREDecl("declare i8* @bery_array_pop(i8*)", "bery_array_pop");
+                std::string rawReg  = newReg();
+                out << "    " << rawReg << " = call i8* @bery_array_pop(i8* " << arrReg << ")\n";
+                std::string castReg = newReg();
+                out << "    " << castReg << " = bitcast i8* " << rawReg << " to " << lt << "*\n";
+                return emitLoad(lt, castReg, out);
+            }
+            if (method == "insert") {
+                emitBREDecl("declare void @bery_array_insert(i8*, i64, i8*)", "bery_array_insert");
+                std::string idxReg  = genExpression(call->arguments[0].get(), "int", out);
+                std::string idxExt  = emitSext("i32", idxReg, "i64", out);
+                std::string valReg  = genExpression(call->arguments[1].get(), elemType, out);
+                std::string castReg = emitBoxValue(lt, valReg, out);
+                out << "    call void @bery_array_insert(i8* " << arrReg << ", i64 " << idxExt << ", i8* " << castReg << ")\n";
+                return "0";
+            }
+            if (method == "remove") {
+                emitBREDecl("declare void @bery_array_remove(i8*, i64)", "bery_array_remove");
+                std::string idxReg = genExpression(call->arguments[0].get(), "int", out);
+                std::string idxExt = emitSext("i32", idxReg, "i64", out);
+                out << "    call void @bery_array_remove(i8* " << arrReg << ", i64 " << idxExt << ")\n";
+                return "0";
+            }
         }
     }
-   return "0";
+
+    if (functions.find(call->callee) == functions.end()) return "0";
+    CodeGenFunctionSignature& sig = functions[call->callee];
+
+    std::string argsStr;
+    for (size_t i = 0; i < call->arguments.size(); ++i) {
+        std::string argReg = genExpression(call->arguments[i].get(), sig.paramTypes[i], out);
+        argsStr += llvmType(sig.paramTypes[i]) + " " + argReg;
+        if (i + 1 < call->arguments.size()) argsStr += ", ";
+    }
+
+    if (sig.returnType == "void") {
+        out << "    call void @" << call->callee << "(" << argsStr << ")\n";
+        return "0";
+    }
+    std::string resReg = newReg();
+    out << "    " << resReg << " = call " << llvmType(sig.returnType) << " @" << call->callee << "(" << argsStr << ")\n";
+    return resReg;
+}
+
+std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out) {
+    if (!node) return "0";
+    switch (node->type) {
+        case NodeType::NULL_LIT:        return "null";
+        case NodeType::INT_LIT:
+        case NodeType::DECIMAL_LIT:
+        case NodeType::BOOL_LIT:
+        case NodeType::CHAR_LIT:
+        case NodeType::STRING_LIT:      return genLiteral(node, expectedType, out);
+        case NodeType::IDENT:           return genIdentExpr(node, expectedType, out);
+        case NodeType::GROUPED_EXPR:    return genExpression(static_cast<GroupedExprNode*>(node)->expression.get(), expectedType, out);
+        case NodeType::UNARY_EXPR:      return genUnaryExpr(node, expectedType, out);
+        case NodeType::BETWEEN_EXPR:    return genBetweenExpr(node, out);
+        case NodeType::BINARY_EXPR:     return genBinaryExpr(node, expectedType, out);
+        case NodeType::TERNARY_EXPR:    return genTernaryExpr(node, out);
+        case NodeType::ASSIGNMENT_EXPR: return genAssignmentExpr(node, out);
+        case NodeType::CAST_EXPR:       return genCastExpr(node, out);
+        case NodeType::INDEX_EXPR:      return genIndexExpr(node, out);
+        case NodeType::CALL_EXPR:       return genCallExpr(node, out);
+        default:                        return "0";
+    }
 }
