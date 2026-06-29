@@ -1,0 +1,10 @@
+class Shape {
+    attributes[me]::
+        int len;
+        int brd;
+
+    methods::
+        func area() -> int {
+            return len;
+        }
+};

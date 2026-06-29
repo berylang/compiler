@@ -112,7 +112,7 @@ static int cmdCompile(const std::string& sourcePath, std::string& outBinaryPath,
     std::string stem  = stemOf(sourcePath);
     std::string dir   = dirOf(sourcePath);
     std::string irFile  = dir + BERY_PATH_SEP + stem + ".ll";
-    std::string objFile = dir + BERY_PATH_SEP + stem + tc.obectExt;
+    std::string objFile = dir + BERY_PATH_SEP + stem + tc.objectExt;
     outBinaryPath       = dir + BERY_PATH_SEP + stem + tc.binaryExt;
     int fe = runFrontend(sourcePath, irFile);
     if (fe != 0) return fe;

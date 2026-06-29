@@ -6,7 +6,7 @@
 struct BeryToolChain {
     std::string llc;
     std::string linker;
-    std::string obectExt;
+    std::string objectExt;
     std::string binaryExt;
     bool valid;
 };
@@ -47,7 +47,7 @@ inline BeryToolChain detectToolchain() {
     else if (commandExists("g++"))     tc.linker = "g++";
     else return tc;
 #elif defined(BERY_LINUX)
-    tc.obectExt = ".o";
+    tc.objectExt = ".o";
     tc.binaryExt = "";
     if      (commandExists("g++"))     tc.linker = "g++";
     else if (commandExists("clang++")) tc.linker = "clang++";
