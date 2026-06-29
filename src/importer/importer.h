@@ -1,4 +1,15 @@
 #pragma once
+
+/*
+
+    Bery Importer,
+
+    It resolves every 'import' statements by replacing them with the actual AST nodes of the imported file,
+    before semantic analyzer runs.
+
+
+*/
+
 #include <string>
 #include <vector>
 #include <unordered_set>

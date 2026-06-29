@@ -1,0 +1,40 @@
+run {
+    int n = inputInt("Enter size: ");
+    int arr[10];
+
+    for (int i = 0; i < n; i++) {
+        arr[i] = inputInt("Enter element: ");
+    }
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                int tmp  = arr[j];
+                arr[j]   = arr[j + 1];
+                arr[j+1] = tmp;
+            }
+        }
+    }
+
+    int target = inputInt("Search for: ");
+    int idx = -1;
+    for (int i = 0; i < n; i++) {
+        if (arr[i] == target) {
+            idx = i;
+        }
+    }
+
+    println("Sorted:");
+    for (int i = 0; i < n; i++) {
+        print(arr[i]);
+        print(" ");
+    }
+    println();
+
+    if (idx == -1) {
+        println("Not found.");
+    } else {
+        print("Found at index: ");
+        println(idx);
+    }
+}

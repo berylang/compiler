@@ -1,4 +1,19 @@
 #include "importer.h"
+
+/*
+
+    Bery Importer,
+
+    it resolves imports by - 
+        1. finds .bry file on disk
+        2. send it to lexer -> parser to create it's own AST
+        3. recursively resolves any imports inside that module too.
+        4. collects all global names from the module,
+        5. runs mangler on them, like add() function becomes moduleName.add() function.
+        6. replaces the 'IMPORT_NODE' on main programs AST with these nodes.
+
+*/
+
 #include "mangler.h"
 #include "../lexer/lexer.h"
 #include "../parser/parser.h"
@@ -35,8 +50,6 @@ void Importer::loadModule(const std::string& modName, const std::string& fullPat
     }
     std::stringstream buffer;
     buffer << file.rdbuf();
-
-    // 3. Lex & Parse the imported file
     Lexer lexer(buffer.str());
     auto tokens = lexer.tokanize();
     Parser parser(tokens);

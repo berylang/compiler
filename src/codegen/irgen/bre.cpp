@@ -1,0 +1,79 @@
+#include "../codegen.h"
+#include <string>
+#include <iomanip>
+#include "../../parser/ast/functions.h"
+
+void CodeGen::emitBREDecl(const std::string& decl, const std::string& key) {
+    if (declaredExterns.count(key)) return;
+    declaredExterns.insert(key);
+    breDecls << decl << "\n";
+}
+
+std::string CodeGen::genBREPrintCall(ASTNode* node, std::ostream& out) {
+    auto* call = static_cast<CallExprNode*>(node);
+    const std::string& callee = call->callee;
+
+    auto emitPrint = [&](ASTNode* arg) {
+        std::string argType = inferType(arg);
+        std::string sym, llvmT;
+        if      (argType == "int")    { sym = "__bery_print_int";    llvmT = "i32"; }
+        else if (argType == "bigint") { sym = "__bery_print_bigint"; llvmT = "i64"; }
+        else if (argType == "float")  { sym = "__bery_print_float";  llvmT = "float"; }
+        else if (argType == "double") { sym = "__bery_print_double"; llvmT = "double"; }
+        else if (argType == "bool")   { sym = "__bery_print_bool";   llvmT = "i1"; }
+        else if (argType == "char")   { sym = "__bery_print_char";   llvmT = "i8"; }
+        else if (argType == "string") { 
+            sym = "__bery_print_string"; 
+            llvmT = "i8*"; 
+        }
+        else { sym = "__bery_print_int";    llvmT = "i32"; }
+
+        emitBREDecl("declare void @" + sym + "(" + llvmT + ")", sym);
+        std::string argReg = genExpression(arg, argType, out);
+        out << "    call void @" << sym << "(" << llvmT << " " << argReg << ")\n";
+    };
+
+    if (callee == "print") {
+        emitPrint(call->arguments[0].get());
+        return "0";
+    }
+
+    if (callee == "println") {
+        if (!call->arguments.empty()) {
+            emitPrint(call->arguments[0].get());
+        }
+        emitBREDecl("declare void @bery_println()", "bery_println");
+        out << "    call void @bery_println()\n";
+        return "0";
+    }
+    struct InputMapping {
+        const char* callee;
+        const char* sym;
+        const char* llvmRet;
+    };
+    static const InputMapping inputMap[] = {
+        {"inputInt",    "__bery_input_int",    "i32"},
+        {"inputBigInt", "__bery_input_bigint", "i64"},
+        {"inputFloat",  "__bery_input_float",  "float"},
+        {"inputDouble", "__bery_input_double", "double"},
+        {"inputBool",   "__bery_input_bool",   "i1"},
+        {"inputChar",   "__bery_input_char",   "i8"},
+        {"inputString", "bery_input",          "i8*"},
+    };
+
+    for (auto& m : inputMap) {
+        if (callee == m.callee) {
+            emitBREDecl(
+                std::string("declare ") + m.llvmRet + " @" + m.sym + "(i8*)",
+                m.sym
+            );
+            std::string promptReg = genExpression(call->arguments[0].get(), "string", out);
+            std::string resReg = newReg();
+            out << "    " << resReg << " = call " << m.llvmRet
+                << " @" << m.sym << "(i8* " << promptReg << ")\n";
+            return resReg;
+        }
+    }
+
+    return "0";
+}

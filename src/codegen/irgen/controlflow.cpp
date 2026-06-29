@@ -177,9 +177,7 @@ void CodeGen::genForStmt(ASTNode* node, std::ostream& out) {
     if (forStmt->init) {
         genStatement(forStmt->init.get(), out);
     }
-    symTable.popScope();
-    int roots = popGCScope();
-    emitGCPops(roots, out);
+    
     
     int blockid = ++regCounter;
     std::string condLbl = "for_cond_" + std::to_string(blockid);
@@ -212,8 +210,9 @@ void CodeGen::genForStmt(ASTNode* node, std::ostream& out) {
     }
     out << "    br label %" << condLbl << "\n";
     out << "\n" << endLbl << ":\n";
-    
     symTable.popScope();
+    int roots = popGCScope();
+    emitGCPops(roots, out);
 }
 
 void CodeGen::genForInStmt(ASTNode* node, std::ostream& out) {
