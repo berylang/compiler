@@ -12,6 +12,7 @@
 #include "../parser/ast/vardecl.h"
 #include "../parser/ast/arraydeclare.h"
 #include "../parser/ast/functions.h"
+#include "../parser/ast/classes.h"
 #include <iostream>
 
 SemanticAnalyzer::SemanticAnalyzer(ASTNode* root)
@@ -26,7 +27,11 @@ void SemanticAnalyzer::analyze() {
             sig.returnType = func->returnType;
             for (auto& p : func->parameters) sig.paramTypes.push_back(p.first);
             functions[func->name] = sig;
-        } else if (node->type == NodeType::EXTERN_DECL) {
+        } else if (node->type == NodeType::CLASS_DEF) {
+            auto* cls = static_cast<ClassDefNode*>(node.get());
+            classes[cls->name] = cls;
+        } 
+        else if (node->type == NodeType::EXTERN_DECL) {
             auto* ext = static_cast<ExternDeclNode*>(node.get());
             FunctionSignature sig;
             sig.returnType = ext->returnType;
@@ -63,6 +68,7 @@ void SemanticAnalyzer::analyzeNode(ASTNode* node) {
     else if (node->type == NodeType::ENUM_DECL)         analyzeEnumDecl(node);
     else if (node->type == NodeType::FOR_STMT)          analyzeForStmt(node);
     else if (node->type == NodeType::FOR_IN_STMT)       analyzeForInStmt(node);
+    else if (node->type == NodeType::CLASS_DEF)         analyzeClassDecl(node);
     else if (node->type == NodeType::PASS_STMT){}
     else if (node->type == NodeType::EXTERN_DECL){}
 } 

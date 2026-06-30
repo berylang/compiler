@@ -12,7 +12,9 @@
 #include "../parser/ast/vardecl.h"
 #include "../parser/ast/arraydeclare.h"
 #include "../parser/ast/functions.h"
+#include "../parser/ast/classes.h"
 #include <iostream>
+#include <unordered_set>
 
 void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
    auto* decl = static_cast<VarDeclNode*>(node);
@@ -48,7 +50,7 @@ void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
             }
         }
     }
-    symbolTable.add(decl->name, {decl->varType, decl->isConst, decl->value != nullptr, decl->line, "", "", 0});
+    symbolTable.addVariable(decl->name, decl->varType, decl->isConst, decl->value != nullptr, decl->line);
 }
 
 void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
@@ -59,7 +61,7 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
         errors = true; return;
     }
     if (decl->dimensions.size() == 1 && decl->dimensions[0] == -1 && decl->initializers.empty()) {
-        symbolTable.add(decl->name, {"array<" + decl->elementType + ">", false, false, decl->line, "", "", 0});
+        symbolTable.addVariable(decl->name, "array<" + decl->elementType + ">", false, false, decl->line);
         return;
     }
     int totalSize = 1;
@@ -108,7 +110,7 @@ void SemanticAnalyzer::analyzeArrayDecl(ASTNode* node) {
     }
     std::string typeSignature = decl->elementType;
     for (size_t i = 0; i < decl->dimensions.size(); ++i) typeSignature += "[]";
-    symbolTable.add(decl->name, {typeSignature, false, !decl->initializers.empty(), decl->line, "", "", totalSize});
+    symbolTable.addVariable(decl->name, typeSignature, false, !decl->initializers.empty(), decl->line, decl->dimensions);
 }
 
 void SemanticAnalyzer::analyzeFuncDef(ASTNode* node) {
@@ -117,7 +119,7 @@ void SemanticAnalyzer::analyzeFuncDef(ASTNode* node) {
     
     symbolTable.pushScope();
     for (auto& param : func->parameters) {
-        symbolTable.add(param.second, {param.first, false, true, func->line, "", "", 0});
+        symbolTable.addVariable(param.second, param.first, false, true, func->line);
     }
     
     for (auto& stmt : func->body->statements) 
@@ -162,7 +164,53 @@ void SemanticAnalyzer::analyzeEnumDecl(ASTNode* node) {
             std::cerr << "Bery:Error [Line " << enumDecl->line << "]: Enum value '" << mangledName << "' already declared.\n";
             errors = true;
         } else {
-            symbolTable.add(mangledName, {"int", true, true, enumDecl->line, "", ""});
+            symbolTable.addVariable(mangledName, "int", true, true, enumDecl->line);
+        }
+    }
+}
+
+void SemanticAnalyzer::analyzeClassDecl(ASTNode* node) {
+    auto* cls = static_cast<ClassDefNode*>(node);
+
+    std::unordered_set<std::string> seen;
+    if (cls->attributes) {
+        for (auto& attr : cls->attributes->attributes) {
+            auto* field = static_cast<VarDeclNode*>(attr.get());
+            if (seen.count(field->name)) {
+                std::cerr << "Bery:Error [Line " << field->line << "]: Duplicate field '"
+                          << field->name << "' in class '" << cls->name << "'\n";
+                errors = true;
+            }
+            seen.insert(field->name);
+        }
+    }
+
+    if (cls->methods) {
+        for (auto& m : cls->methods->methods) {
+            auto* func = static_cast<FunctionDefNode*>(m.get());
+            FunctionSignature sig;
+            sig.returnType = func->returnType;
+            for (auto& p : func->parameters) sig.paramTypes.push_back(p.first);
+            functions[cls->name + "." + func->name] = sig;
+
+            currentFunctionReturnType = func->returnType;
+            symbolTable.pushScope();
+            if (cls->attributes) {
+                symbolTable.addVariable(cls->attributes->selfRef, cls->name, false, true, cls->line);
+                for (auto& attr : cls->attributes->attributes) {
+                    auto* field = static_cast<VarDeclNode*>(attr.get());
+                    symbolTable.addVariable(field->name, field->varType, false,true, field->line);
+                }
+            }
+
+            for (auto& p : func->parameters)
+                symbolTable.addVariable(p.second,p.first,false, true,func->line);
+
+            for (auto& stmt : func->body->statements)
+                analyzeNode(stmt.get());
+
+            symbolTable.popScope();
+            currentFunctionReturnType = "";
         }
     }
 }

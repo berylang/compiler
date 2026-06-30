@@ -23,6 +23,7 @@
 
 #include <memory>
 #include "../parser/ast/node.h"
+#include "../parser/ast/classes.h"
 #include "symboltable.h"
 #include "typechecker.h"
 #include <unordered_map>
@@ -70,4 +71,8 @@ private:
    std::string currentFunctionReturnType = "";
    void analyzeFuncDef(ASTNode* node);
    void analyzeReturnStmt(ASTNode* node);
+
+   // @oop
+   std::unordered_map<std::string, ClassDefNode*> classes;
+   void analyzeClassDecl(ASTNode* node);
 };

@@ -101,7 +101,15 @@ void CodeGen::genStatement(ASTNode* stmt, std::ostream& out) {
             std::string safeRegName = enumDecl->name + "_" + val; 
             std::string memReg = "%" + safeRegName + "_" + std::to_string(++regCounter);
             
-            symTable.add(mangledName, {"int", true, true, enumDecl->line, memReg, lt});
+            Symbol sym;
+            sym.symbolType = SymbolType::VARIABLE;
+            sym.type = "int";
+            sym.isConst = true;
+            sym.isInitialized = true;
+            sym.line = enumDecl->line;
+            sym.llvmRegister = memReg;
+            sym.llvmAllocType = lt;
+            symTable.add(mangledName, sym);
             out << "    " << memReg << " = alloca " << lt << "\n";
             out << "    store " << lt << " " << currentValue++ << ", " << lt << "* " << memReg << "\n";
         }

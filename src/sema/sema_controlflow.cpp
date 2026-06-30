@@ -187,7 +187,7 @@ void SemanticAnalyzer::analyzeForInStmt(ASTNode* node) {
     if (forIn->step) {
         typeChecker.analyzeExpression(forIn->step.get());
     }
-    symbolTable.add(forIn->varName, {actualVarType, false, true, forIn->line, "", "", 0});
+    symbolTable.addVariable(forIn->varName, actualVarType, false, true, forIn->line);
 
     loopDepth++; 
     loopOrSwitchDepth++;

@@ -31,9 +31,39 @@ void SymbolTable::popScope() {
 }
 
 void SymbolTable::add(const std::string& name, Symbol sym) {
-    scopes.back()[name] = sym;
+    sym.name = name;
+    scopes.back()[name] = std::move(sym);
 }
 
+void SymbolTable::addVariable(const std::string& name, const std::string& type, bool isConst, bool isInitialized, int line, std::vector<int> dims) {
+    Symbol sym;
+    sym.symbolType =SymbolType::VARIABLE;
+    sym.type = type;
+    sym.isConst = isConst;
+    sym.isInitialized = isInitialized;
+    sym.line = line;
+    sym.arrayDimensions = std::move(dims);
+    sym.arraySize = sym.arrayDimensions.empty() ? 0:1;
+    for (int d : sym.arrayDimensions) sym.arraySize *= d;
+    add(name, std::move(sym));
+}
+
+void SymbolTable::addFunction(const std::string& name, const std::string& returnType, std::vector<std::string> paramTypes, int line) {
+    Symbol sym;
+    sym.symbolType = SymbolType::FUNCTION;
+    sym.type = returnType;
+    sym.paramTypes = std::move(paramTypes);
+    sym.line = line;
+    add(name, std::move(sym));
+}
+
+void SymbolTable::addClass(const std::string& name, int line) {
+    Symbol sym;
+    sym.symbolType = SymbolType::CLASS;
+    sym.type = name;
+    sym.line = line;
+    add(name, std::move(sym));
+}
 bool SymbolTable::existsInCurrentScope(const std::string& name) {
     return scopes.back().find(name) != scopes.back().end();
 }
@@ -45,13 +75,19 @@ bool SymbolTable::exists(const std::string& name) {
     }
     return false;
 }
+bool SymbolTable::existsAsType(const std::string& name, SymbolType symbolType) {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
+        auto found = it->find(name);
+        if (found != it->end()) return found->second.symbolType == symbolType;
+    }
+    return false;
+}
 
 Symbol& SymbolTable::get(const std::string& name) {
     for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-        if (it->find(name) != it->end()) {
-            return it->at(name); 
-        }
+        auto found = it->find(name);
+        if (found != it->end()) return found->second;
     }
-    std::cerr << "Bery:'internal compiler error'";
-    std::abort(); 
+    std::cerr << "Bery:'internal compiler error': symbol '" << name << "' not found in symbol table\n";
+    std::abort();
 }

@@ -9,45 +9,43 @@ std::unique_ptr<ASTNode> Parser::parseClassDecl() {
     int line = previous().line;
     Token className = consume(TokenType::TOKEN_IDENT, "Expected class name");
     consume(TokenType::TOKEN_LBRACE, "Expected '{' after class name");
-    consume(TokenType::TOKEN_ATTRIBUTES, "Expected 'attributes' section");
-    consume(TokenType::TOKEN_LBRACKET, "Expected '[' after attributes");
+    
+    auto attrSection = parseAttributeSection();
 
-    Token selfToken = consume(TokenType::TOKEN_IDENT, "Expected self reference");
+    std::unique_ptr<MethodSectionNode> methodSection = nullptr;
+    if (check(TokenType::TOKEN_METHODS)) {
+        methodSection = parseMethodSection();
+    }
+    consume(TokenType::TOKEN_RBRACE, "Expected '}' after class body");
+    return std::make_unique<ClassDefNode>(className.lexeme, std::move(attrSection), std::move(methodSection), line);
+}
 
-    consume(TokenType::TOKEN_RBRACKET, "Expected ']' after self reference");
-    consume(TokenType::TOKEN_DCOLON, "Expected '::' after attributes section");
+std::unique_ptr<AttributeSectionNode> Parser::parseAttributeSection() {
+    consume(TokenType::TOKEN_ATTRIBUTES, "Exptected 'attributes' section");
+    consume(TokenType::TOKEN_LBRACKET, "Expected '[' after 'attributes'");
+    Token selfToken = consume(TokenType::TOKEN_IDENT, "Expected self-reference identifier");
+    consume(TokenType::TOKEN_RBRACKET, "Expected ']' after self-reference");
+    consume(TokenType::TOKEN_DCOLON, "Exptected '::' after attributes seciton verbose");
 
     std::vector<std::unique_ptr<ASTNode>> attributes;
-
-    if (!isTypeToken(peek().type)) {
-        std::cerr << "Bery:Error [Line " << peek().line<< "]: Class must contain at least one attribute\n";
-        errors = true;
-        throw ParseError();
-    }
-
-    while (!isAtEnd() && isTypeToken(peek().type)) {
-        auto vars = parseVarDecl(false);
-        for (auto &v : vars) {
+    while(!isAtEnd() && isTypeToken(peek().type)) {
+        auto vars= parseVarDecl(false);
+        for (auto& v : vars) {
             attributes.push_back(std::move(v));
         }
     }
-    auto attributeSection =std::make_unique<AttributeSectionNode>(selfToken.lexeme,std::move(attributes),selfToken.line);
-    std::unique_ptr<MethodSectionNode> methodSection = nullptr;
+    return std::make_unique<AttributeSectionNode>(selfToken.lexeme, std::move(attributes), selfToken.line);
+}
 
-    if (check(TokenType::TOKEN_METHODS)) {
-        advance();
-        int methodsLine = previous().line;
+std::unique_ptr<MethodSectionNode> Parser::parseMethodSection() {
+    int line = peek().line;
+    consume(TokenType::TOKEN_METHODS, "Expected 'methods' section");
+    consume(TokenType::TOKEN_DCOLON, "Exptected '::' after 'methods");
 
-        consume(TokenType::TOKEN_DCOLON, "Expected '::' after methods");
-        std::vector<std::unique_ptr<ASTNode>> methods;
-
-        while (!isAtEnd() && check(TokenType::TOKEN_FUNC)) {
-            methods.push_back(parseFunctionDef());
-        }
-        methodSection =std::make_unique<MethodSectionNode>(std::move(methods), methodsLine);
+    std::vector<std::unique_ptr<ASTNode>> methods;
+    while(!isAtEnd() && check(TokenType::TOKEN_FUNC)){
+        methods.push_back(parseFunctionDef());
     }
 
-    consume(TokenType::TOKEN_RBRACE, "Expected '}' after class definition");
-
-    return std::make_unique<ClassDefNode>(className.lexeme,std::move(attributeSection),std::move(methodSection),line);
+    return std::make_unique<MethodSectionNode>(std::move(methods), line);
 }

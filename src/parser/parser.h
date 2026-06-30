@@ -11,6 +11,7 @@ it contains every helper functions which eventually helps the 'parse()' method.
 #include "ast/node.h"
 #include "ast/blocknode.h"
 #include "../lexer/token.h"
+#include "ast/classes.h"
 #include <vector>
 #include <memory>
 #include <exception>
@@ -102,5 +103,7 @@ private:
 
     // @oops
     std::unique_ptr<ASTNode> parseClassDecl();
+    std::unique_ptr<AttributeSectionNode> parseAttributeSection();
+    std::unique_ptr<MethodSectionNode> parseMethodSection();
 };
 

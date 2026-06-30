@@ -19,6 +19,7 @@
 #include <unordered_set>
 #include "../parser/ast/node.h"
 #include "../sema/symboltable.h"
+#include "../parser/ast/classes.h"
 
 
 // @function signature data
@@ -123,4 +124,15 @@ private:
    std::string genCallExpr(ASTNode* node, std::ostream& out);
 
    std::string emitBinaryOp(const std::string& op, const std::string& llvmT, bool isFloat, const std::string& lReg, const std::string& rReg, std::ostream& out);
+
+   // @oop
+   struct ClassLayout {
+      std::string name;
+      std::vector<std::pair<std::string, std::string>> fields;
+      std::string llvmStructType; 
+      std::unordered_map<std::string, int> fieldIndex;
+   };
+   std::unordered_map<std::string, ClassLayout> classLayouts;
+   void genClassDecl(ASTNode* node);
+   
 };

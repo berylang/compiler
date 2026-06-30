@@ -60,6 +60,8 @@ void CodeGen::generate(const std::string& outputPath) {
 
             functions[ext->name] = sig;
             globalsOut << decl << "\n";
+        }else if (node->type == NodeType::CLASS_DEF) {
+            genClassDecl(node.get());
         }
     }
 

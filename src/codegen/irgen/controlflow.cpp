@@ -233,7 +233,14 @@ void CodeGen::genForInStmt(ASTNode* node, std::ostream& out) {
             lt = "i64";
         }
         std::string varReg = "%" + forIn->varName + "_" + std::to_string(++regCounter);
-        symTable.add(forIn->varName, {forIn->varType, false, true, forIn->line, varReg, lt, 0});
+        Symbol sym;
+        sym.symbolType = SymbolType::VARIABLE;
+        sym.type = forIn->varType;
+        sym.isInitialized = true;
+        sym.line = forIn->line;
+        sym.llvmRegister = varReg;
+        sym.llvmAllocType = lt;
+        symTable.add(forIn->varName, sym);
         out << "    " << varReg << " = alloca " << lt << "\n";
         std::string startReg = genExpression(forIn->iterableOrStart.get(), lt, out);
         out << "    store " << lt << " " << startReg << ", " << lt << "* " << varReg << "\n";
@@ -291,7 +298,14 @@ void CodeGen::genForInStmt(ASTNode* node, std::ostream& out) {
         
         std::string idxType = "i32";
         std::string varReg = "%" + forIn->varName + "_" + std::to_string(++regCounter);
-        symTable.add(forIn->varName, {forIn->varType, false, true, forIn->line, varReg, lt});
+        Symbol sym;
+        sym.symbolType = SymbolType::VARIABLE;
+        sym.type = forIn->varType;
+        sym.isInitialized = true;
+        sym.line = forIn->line;
+        sym.llvmRegister = varReg;
+        sym.llvmAllocType = lt;
+        symTable.add(forIn->varName, sym);
         out << "    " << varReg << " = alloca " << lt << "\n";
         
         std::string idxReg = "%forin_idx_" + std::to_string(++regCounter);
