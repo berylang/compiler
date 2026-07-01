@@ -49,3 +49,7 @@ std::unique_ptr<MethodSectionNode> Parser::parseMethodSection() {
 
     return std::make_unique<MethodSectionNode>(std::move(methods), line);
 }
+
+bool Parser::isClassVarDecl() {
+    return peek().type == TokenType::TOKEN_IDENT && current + 1 < (int)tokens.size() && tokens[current + 1].type == TokenType::TOKEN_IDENT;
+}

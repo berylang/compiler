@@ -4,7 +4,9 @@
 #include "../../parser/ast/classes.h"
 #include "../../parser/ast/functions.h"
 #include "../../parser/ast/classes.h"
+#include "../../parser/ast/expressions.h"
 #include "../../sema/symboltable.h"
+
 void CodeGen::genClassDecl(ASTNode* node) {
     auto* cls = static_cast<ClassDefNode*>(node);
 
@@ -27,7 +29,18 @@ void CodeGen::genClassDecl(ASTNode* node) {
 
     if (layout.fields.empty()) structDef << "i8";
     structDef << " }";
+    layout.instanceSize = 0;
+    for (auto& field : layout.fields) {
+        layout.instanceSize += (size_t)alignOf(llvmType(field.first));
+    }
+    if (layout.instanceSize == 0) {
+        layout.instanceSize = 1;
+    }
 
+    std::string classNameEscaped = escapeLLVMString(cls->name);
+    int classNameLen = (int)cls->name.length() + 1;
+    globalStrings << "@.classname." << cls->name << " = private unnamed_addr constant ["<< classNameLen << " x i8] c\"" << classNameEscaped << "\"\n";
+    globalStrings << "@" << cls->name << "_typeid = global i32 0\n";
     globalStrings << structDef.str() << "\n";
     if (cls->methods) {
         for (auto& m : cls->methods->methods) {
@@ -147,7 +160,7 @@ void CodeGen::genVarDecl(ASTNode* node, std::ostream& out) {
     sym.llvmAllocType = lt;
     symTable.add(decl->name, sym);
     out << "    " << memReg << " = alloca " << lt << "\n";
-    if (decl->varType == "string") {
+    if (decl->varType == "string" || classLayouts.count(decl->varType)) {
         emitGCPush(memReg, lt, out);
     }
     if (!decl->value) return;

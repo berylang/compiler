@@ -64,7 +64,8 @@ static std::unordered_map<std::string, TokenType> keywords = {
     // @object oriented programming
     {"class", TokenType::TOKEN_CLASS},
     {"attributes", TokenType::TOKEN_ATTRIBUTES},
-    {"methods", TokenType::TOKEN_METHODS}
+    {"methods", TokenType::TOKEN_METHODS},
+    {"new", TokenType::TOKEN_NEW}
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}

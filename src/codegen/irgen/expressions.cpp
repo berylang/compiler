@@ -555,6 +555,30 @@ std::string CodeGen::genCallExpr(ASTNode* node, std::ostream& out) {
     return resReg;
 }
 
+std::string CodeGen::genNewExpr(ASTNode* node, std::ostream& out) {
+    auto* newExpr = static_cast<NewExprNode*>(node);
+    auto it = classLayouts.find(newExpr->className);
+    if (it == classLayouts.end()) return "null";
+    ClassLayout& layout = it->second;
+
+    emitBREDecl("declare i8* @bery_alloc(i64, i32)", "bery_alloc");
+    std::string typeIdReg = emitLoad("i32", "@" + newExpr->className + "_typeid", out);
+    std::string rawReg = newReg();
+    out << "    " << rawReg << " = call i8* @bery_alloc(i64 " << layout.instanceSize<< ", i32 " << typeIdReg << ")\n";
+    std::string objReg = newReg();
+    out << "    " << objReg << " = bitcast i8* " << rawReg << " to " << layout.llvmStructType << "*\n";
+
+    for (size_t i = 0; i < layout.fields.size(); ++i) {
+        std::string flt = llvmType(layout.fields[i].first);
+        std::string gepReg = newReg();
+        out << "    " << gepReg << " = getelementptr inbounds " << layout.llvmStructType << ", "
+            << layout.llvmStructType << "* " << objReg << ", i32 0, i32 " << i << "\n";
+        std::string zeroVal = (flt == "float" || flt == "double") ? "0.0" : (flt == "i8*" ? "null" : "0");
+        out << "    store " << flt << " " << zeroVal << ", " << flt << "* " << gepReg << "\n";
+    }
+    return objReg;
+}
+
 std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedType, std::ostream& out) {
     if (!node) return "0";
     switch (node->type) {
@@ -574,6 +598,7 @@ std::string CodeGen::genExpression(ASTNode* node, const std::string& expectedTyp
         case NodeType::CAST_EXPR:       return genCastExpr(node, out);
         case NodeType::INDEX_EXPR:      return genIndexExpr(node, out);
         case NodeType::CALL_EXPR:       return genCallExpr(node, out);
+        case NodeType::NEW_EXPR:        return genNewExpr(node, out);
         default:                        return "0";
     }
 }

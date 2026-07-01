@@ -17,19 +17,27 @@
 #include <unordered_set>
 
 void SemanticAnalyzer::analyzeVarDecl(ASTNode* node) {
-   auto* decl = static_cast<VarDeclNode*>(node);
-   if (symbolTable.existsInCurrentScope(decl->name)) {
-       std::cerr << "Bery:Error [Line "<< decl->line<< "]: '" << decl->name << "' already declared in this scope.\n";
-       errors = true;
-       return;
-   }
-   if (decl->isConst && !decl->value) {
-       std::cerr << "Bery:Error [Line "<< decl->line <<"]: constant '" << decl->name << "' must be initialized.\n";
-       errors = true;
-       return;
-   }
-   if (decl->value) {
-       std::string exprtype = typeChecker.analyzeExpression(decl->value.get());
+    auto* decl = static_cast<VarDeclNode*>(node);
+    static const std::unordered_set<std::string> primitiveTypes = {
+        "int", "bigint", "bool", "float", "double", "char", "string"
+    };
+    if (!primitiveTypes.count(decl->varType) && !classes.count(decl->varType)) {
+        std::cerr << "Bery:Error [Line " << decl->line << "]: Unknown type '" << decl->varType << "'\n";
+        errors = true;
+        return;
+    }
+    if (symbolTable.existsInCurrentScope(decl->name)) {
+        std::cerr << "Bery:Error [Line "<< decl->line<< "]: '" << decl->name << "' already declared in this scope.\n";
+        errors = true;
+        return;
+    }
+    if (decl->isConst && !decl->value) {
+        std::cerr << "Bery:Error [Line "<< decl->line <<"]: constant '" << decl->name << "' must be initialized.\n";
+        errors = true;
+        return;
+    }
+    if (decl->value) {
+    std::string exprtype = typeChecker.analyzeExpression(decl->value.get());
 
         if(exprtype!="unknown" && exprtype!=decl->varType){
             if (exprtype == "null") {

@@ -14,6 +14,7 @@ std::string CodeGen::llvmType(const std::string& t) {
    if (t == "double") return "double";
    if (t == "char") return "i8";
    if (t == "string") return "i8*";
+   if (classLayouts.count(t)) return classLayouts.at(t).llvmStructType + "*";
    return "i32";
 }
 

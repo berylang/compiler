@@ -2,7 +2,7 @@
 #include "node.h"
 #include <string>
 #include <memory>
-
+#include <vector>
 
 
 struct UnaryExprNode : public ASTNode{
@@ -113,6 +113,16 @@ struct IndexExprNode : public ASTNode {
     IndexExprNode(std::string name, std::vector<std::unique_ptr<ASTNode>> idx, int ln)
         : name(name), indices(std::move(idx)) {
         type = NodeType::INDEX_EXPR;
+        line = ln;
+    }
+};
+
+struct NewExprNode : public ASTNode {
+    std::string className;
+    std::vector<std::unique_ptr<ASTNode>> arguments;
+
+    NewExprNode(std::string cls, std::vector<std::unique_ptr<ASTNode>> args, int ln) : className(cls), arguments(std::move(args)){
+        type = NodeType::NEW_EXPR;
         line = ln;
     }
 };

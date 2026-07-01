@@ -159,6 +159,14 @@ void CodeGen::generate(const std::string& outputPath) {
     body << "\ndefine i32 @main() {\n";
     body << "entry:\n";
     body << "    call void @bery_runtime_startup()\n";
+    for (auto& clPair : classLayouts) {
+        ClassLayout& cl = clPair.second;
+        emitBREDecl("declare i32 @bery_type_register(i8*, i64, i8*, i64, i8*)", "bery_type_register");
+        int nameLen = (int)cl.name.length() + 1;
+        std::string idReg = newReg();
+        body << "    " << idReg << " = call i32 @bery_type_register(i8* getelementptr (["<< nameLen << " x i8], [" << nameLen << " x i8]* @.classname." << cl.name<< ", i32 0, i32 0), i64 " << cl.instanceSize << ", i8* null, i64 0, i8* null)\n";
+        body << "    store i32 " << idReg << ", i32* @" << cl.name << "_typeid\n";
+    }
     pushGCScope();
     for (auto& node : program->globals) {
         if (node->type == NodeType::ARRAY_DECL) {

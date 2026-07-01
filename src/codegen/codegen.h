@@ -128,8 +128,10 @@ private:
       std::vector<std::pair<std::string, std::string>> fields;
       std::string llvmStructType; 
       std::unordered_map<std::string, int> fieldIndex;
+      size_t instanceSize = 0;
    };
    std::unordered_map<std::string, ClassLayout> classLayouts;
    void genClassDecl(ASTNode* node);
+   std::string genNewExpr(ASTNode* node, std::ostream& out);
    
 };
