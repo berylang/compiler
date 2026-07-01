@@ -39,5 +39,7 @@ int beryMain(int argc, char* argv[]){
         }
         return cmdRun(argv[2],ExeDir);
     }
-
+    std::cerr << "Bery : Error : Unknown command '" << command << "'\n";
+    printUsage();
+    return 1;
 }

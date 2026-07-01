@@ -234,6 +234,10 @@ std::string TypeChecker::checkCallExpr(ASTNode* node) {
             std::cerr << "Bery:Error [Line " << call->line << "]: " << call->callee << "() expects exactly 1 argument\n";
             errors = true;
         }
+        for (auto& arg : call->arguments) {
+            analyzeExpression(arg.get());
+        }
+
         auto it = inputTypes.find(call->callee);
         call->resolvedType = (it != inputTypes.end()) ? it->second : "void";
         return call->resolvedType;

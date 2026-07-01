@@ -57,7 +57,9 @@ void SemanticAnalyzer::analyze() {
 void SemanticAnalyzer::analyzeNode(ASTNode* node) {
     if (node->type == NodeType::VAR_DECL)               analyzeVarDecl(node);
     else if (node->type == NodeType::ARRAY_DECL)        analyzeArrayDecl(node);
-    else if (node->type == NodeType::ASSIGNMENT_EXPR)   typeChecker.analyzeExpression(node);
+    else if (node->type == NodeType::ASSIGNMENT_EXPR || 
+             node->type == NodeType::CALL_EXPR || 
+             node->type == NodeType::UNARY_EXPR)   typeChecker.analyzeExpression(node);
     else if(node->type == NodeType::IF_STMT)            analyzeIfStmt(node);
     else if (node->type == NodeType::WHILE_STMT)        analyzeWhileStmt(node);
     else if (node->type == NodeType::DOWHILE_STMT)      analyzeDoWhileStmt(node);

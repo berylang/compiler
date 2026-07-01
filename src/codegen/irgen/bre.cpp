@@ -15,6 +15,29 @@ std::string CodeGen::genBREPrintCall(ASTNode* node, std::ostream& out) {
 
     auto emitPrint = [&](ASTNode* arg) {
         std::string argType = arg->resolvedType;
+
+        if (argType.empty() || argType == "unknown") {
+        switch (arg->type) {
+            case NodeType::INT_LIT:     
+                argType = "int";    
+                break;
+            case NodeType::DECIMAL_LIT: 
+                argType = "double";  
+                break;
+            case NodeType::STRING_LIT:  
+                argType = "string"; 
+                break;
+            case NodeType::BOOL_LIT:    
+                argType = "bool";   
+                break;
+            case NodeType::CHAR_LIT:    
+                argType = "char";   
+                break;
+            default:                    
+                argType = "int";    
+                break;
+        }
+    }
         std::string sym, llvmT;
         if      (argType == "int")    { sym = "__bery_print_int";    llvmT = "i32"; }
         else if (argType == "bigint") { sym = "__bery_print_bigint"; llvmT = "i64"; }

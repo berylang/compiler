@@ -1,5 +1,7 @@
 
 
 run {
+    --- println(10);
+    --- println(10.2);
     println("Hello, Bery!");
 }
