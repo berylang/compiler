@@ -59,7 +59,10 @@ std::unique_ptr<ASTNode> Parser::parse() {
                         auto decls = parseVarDecl(isConst);
                         for (auto& d : decls) program->globals.push_back(std::move(d));
                     }
-                } else {
+                } else if (isClassVarDecl()) { 
+                    auto decls = parseVarDecl(isConst);
+                    for (auto&d : decls) program->globals.push_back(std::move(d));
+                }else {
                     std::cerr << "Bery:Error [Line " << peek().line << "]: Unexpected token '" << peek().lexeme << "'\n";
                     errors = true;
                     throw ParseError();
@@ -178,8 +181,8 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
     }
     
 
-    if(isTypeToken(peek().type)){
-        if(!isConst && isArrayDecl())return parseArrayDecl();
+    if(isTypeToken(peek().type) || isClassVarDecl()){
+        if(!isConst && isTypeToken(peek().type) && isArrayDecl()) return parseArrayDecl();
         std::vector<std::unique_ptr<ASTNode>>decls = parseVarDecl(isConst);
         if(decls.size() == 1){
             return std::move(decls[0]);    

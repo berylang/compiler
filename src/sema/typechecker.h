@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "../parser/ast/classes.h"
 
 
 struct FunctionSignature {
@@ -30,14 +31,14 @@ struct FunctionSignature {
 
 class TypeChecker {
 public:
-    TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag);
-    
+    TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag, std::unordered_map<std::string, ClassDefNode*>& classesMap);    
     std::string analyzeExpression(ASTNode* node);
     bool typeMatchesLiteral(const std::string& type, NodeType litType);
 
 private:
     SymbolTable& symbolTable;
     std::unordered_map<std::string, FunctionSignature>& functions;
+    std::unordered_map<std::string, ClassDefNode*>& classes;
 
     // @todo : need chnages after Error Handler is added.
     bool& errors;
@@ -52,5 +53,6 @@ private:
     std::string checkCastExpr(ASTNode* node);
     std::string checkIdentifier(ASTNode* node);
     std::string checkLiteral(ASTNode* node);
+    std::string checkNewExpr(ASTNode* node);
     std::string resolveNumericPromotion(const std::string& lType, const std::string& rType);
 };

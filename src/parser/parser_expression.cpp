@@ -214,6 +214,19 @@ std::unique_ptr<ASTNode> Parser::parsePostfix(){
 
 std::unique_ptr<ASTNode> Parser::parsePrimary(){
     Token t = peek();
+    if (t.type == TokenType::TOKEN_NEW) {
+        advance();
+        Token className = consume(TokenType::TOKEN_IDENT, "Expected class name after 'new'");
+        consume(TokenType::TOKEN_LPARAN, "Expected '(' after class name");
+        std::vector<std::unique_ptr<ASTNode>> arguments;
+        if (!check(TokenType::TOKEN_RPARAN)) {
+            do {
+                arguments.push_back(parseExpression());
+            } while (check(TokenType::TOKEN_COMMA) && (advance(), true));
+        }
+        consume(TokenType::TOKEN_RPARAN, "Expected ')' after constructor arguments");
+        return std::make_unique<NewExprNode>(className.lexeme, std::move(arguments), t.line);
+    }
     if (t.type == TokenType::TOKEN_IDENT) {
         advance();
         std::string fullName = t.lexeme;

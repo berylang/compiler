@@ -121,7 +121,7 @@ int cmdCompile(const std::string& sourcePath, std::string& outBinaryPath, const 
         std::cerr << "Bery: Error: linker failed.\n";
         return 13;
     }
-    remove(irFile.c_str());
+    //remove(irFile.c_str());
     remove(objFile.c_str());
     return 0;
 }

@@ -12,11 +12,12 @@
 #include "../parser/ast/expressions.h"
 #include "../parser/ast/literals.h"
 #include "../parser/ast/functions.h"
+#include "../parser/ast/classes.h"
 #include <iostream>
 #include <unordered_set>
 
-TypeChecker::TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag) 
-    : symbolTable(symTable), functions(funcs), errors(errorsFlag) {}
+TypeChecker::TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag, std::unordered_map<std::string, ClassDefNode*>& classesMap) 
+    : symbolTable(symTable), functions(funcs), errors(errorsFlag), classes(classesMap) {}
 
 bool TypeChecker::typeMatchesLiteral(const std::string& type, NodeType litType) {
    if (type == "int"    && litType == NodeType::INT_LIT)     return true;
@@ -41,6 +42,7 @@ std::string TypeChecker::analyzeExpression(ASTNode* node) {
         case NodeType::ASSIGNMENT_EXPR: return checkAssignmentExpr(node);
         case NodeType::CAST_EXPR:       return checkCastExpr(node);
         case NodeType::IDENT:           return checkIdentifier(node);
+        case NodeType::NEW_EXPR:        return checkNewExpr(node);
         default:                        return checkLiteral(node);
     }
 }
@@ -516,3 +518,21 @@ std::string TypeChecker::checkLiteral(ASTNode* node) {
             return node->resolvedType;
     }
 }
+
+std::string TypeChecker::checkNewExpr(ASTNode* node) {
+    auto* newExpr = static_cast<NewExprNode*>(node);
+    if (classes.find(newExpr->className) == classes.end()) {
+        std::cerr << "Bery:Error [Line " << newExpr->line << "]: Unknown class '" << newExpr->className << "'\n";
+        errors = true;
+        newExpr->resolvedType = "unknown";
+        return newExpr->resolvedType;
+    }
+    if (!newExpr->arguments.empty()) {
+        std::cerr << "Bery:Error [Line " << newExpr->line << "]: Class '" << newExpr->className << "' has no constructor accepting " << newExpr->arguments.size() << " argument(s)\n";
+        errors = true;
+    }
+    for (auto& arg : newExpr->arguments) analyzeExpression(arg.get());
+    newExpr->resolvedType = newExpr->className;
+    return newExpr->resolvedType;
+}
+
