@@ -6,106 +6,6 @@
 #include <iomanip>
 #include <sstream>
 
-std::string CodeGen::inferType(ASTNode* node) {
-    if (!node) return "void";
-    switch (node->type) {
-        case NodeType::INT_LIT: return "int";
-        case NodeType::DECIMAL_LIT: return "double";
-        case NodeType::BOOL_LIT:return "bool";
-        case NodeType::CHAR_LIT:  return "char";
-        case NodeType::STRING_LIT:return "string";
-        case NodeType::IDENT: {
-            auto* ident = static_cast<IdentNode*>(node);
-            size_t dot = ident->name.find('.');
-            if (dot != std::string::npos) {
-                std::string objName = ident->name.substr(0, dot);
-                std::string prop = ident->name.substr(dot + 1);
-                if (prop == "len") return "int";
-                
-                return "unknown";
-            }
-            
-            return symTable.get(ident->name).type;
-        }
-        case NodeType::INDEX_EXPR: {
-            auto* idx = static_cast<IndexExprNode*>(node);
-            std::string arrType = symTable.get(idx->name).type;
-            if (arrType.size() > 6 && arrType.substr(0, 6) == "array<") {
-                return arrType.substr(6, arrType.size() - 7);
-            }
-            size_t bracket = arrType.find('[');
-            if (bracket != std::string::npos) {
-                return arrType.substr(0, bracket);
-            }
-            return "unknown";
-        }
-        case NodeType::CAST_EXPR: {
-            auto* cast = static_cast<CastExprNode*>(node);
-            return cast->targetType;
-        }
-        case NodeType::CALL_EXPR: {
-            auto* call = static_cast<CallExprNode*>(node);
-            if (call->callee == "inputInt") return "int";
-            if (call->callee == "inputBigInt") return "bigint";
-            if (call->callee == "inputFloat") return "float";
-            if (call->callee == "inputDouble") return "double";
-            if (call->callee == "inputBool") return "bool";
-            if (call->callee == "inputChar") return "char";
-            if (call->callee == "inputString") return "string";
-            size_t dot = call->callee.find('.');
-            if (dot != std::string::npos) {
-                std::string objName = call->callee.substr(0, dot);
-                std::string method = call->callee.substr(dot + 1);
-                
-                if (symTable.exists(objName)) {
-                    std::string objType = symTable.get(objName).type;
-                    if (objType == "string") {
-                        if (method == "substr" || method == "copy") return "string";
-                        if (method == "len") return "int";
-                    }
-                    if (objType.size() > 6 && objType.substr(0, 6) == "array<") {
-                        if (method == "pop" || method == "get") {
-                            return objType.substr(6, objType.size() - 7); 
-                        }
-                        if (method == "len") return "int";
-                    }
-                }
-                return "void";
-            }
-            if (functions.count(call->callee)) {
-                return functions[call->callee].returnType;
-            }
-            
-            return "void";
-        }
-        case NodeType::BINARY_EXPR: {
-            auto* bin = static_cast<BinaryExprNode*>(node);
-            if (bin->optr == "==" || bin->optr == "!=" || 
-                bin->optr == "<"  || bin->optr == "<=" || 
-                bin->optr == ">"  || bin->optr == ">=" || 
-                bin->optr == "&&" || bin->optr == "||") {
-                return "bool";
-            }
-            std::string lt = inferType(bin->left.get());
-            std::string rt = inferType(bin->right.get());
-            
-            if (lt == "double" || rt == "double") return "double";
-            if (lt == "float"  || rt == "float")  return "float";
-            if (lt == "bigint" || rt == "bigint") return "bigint";
-            return lt;
-        }
-        case NodeType::TERNARY_EXPR: {
-            auto* tern = static_cast<TernaryExprNode*>(node);
-            return inferType(tern->trueExpr.get());
-        }
-        case NodeType::GROUPED_EXPR: {
-            auto* grp = static_cast<GroupedExprNode*>(node);
-            return inferType(grp->expression.get());
-        }
-        default: return "int";
-    }
-}
-
 std::string CodeGen::emitBinaryOp(const std::string& op, const std::string& llvmT, bool isFloat, const std::string& lReg, const std::string& rReg, std::ostream& out) {
     std::string res = newReg();
     static const std::unordered_map<std::string, std::pair<std::string,std::string>> opMap = {
@@ -260,16 +160,16 @@ std::string CodeGen::genUnaryExpr(ASTNode* node, const std::string& expectedType
 }
 
 std::string CodeGen::genBetweenExpr(ASTNode* node, std::ostream& out) {
-    auto* bet           = static_cast<BetweenExprNode*>(node);
-    std::string opLT    = llvmType(bet->opType);
-    bool isFloat        = (bet->opType == "float" || bet->opType == "double");
+    auto* bet= static_cast<BetweenExprNode*>(node);
+    std::string opLT= llvmType(bet->resolvedType);
+    bool isFloat = (bet->resolvedType == "float" || bet->resolvedType == "double");
 
-    std::string tReg    = genExpression(bet->value.get(), bet->opType, out);
-    std::string lReg    = genExpression(bet->lower.get(), bet->opType, out);
-    std::string uReg    = genExpression(bet->upper.get(), bet->opType, out);
+    std::string tReg = genExpression(bet->value.get(), bet->resolvedType, out);
+    std::string lReg = genExpression(bet->lower.get(), bet->resolvedType, out);
+    std::string uReg = genExpression(bet->upper.get(), bet->resolvedType, out);
 
-    std::string cmp1    = newReg();
-    std::string cmp2    = newReg();
+    std::string cmp1 = newReg();
+    std::string cmp2 = newReg();
     out << "    " << cmp1 << " = " << (isFloat ? "fcmp oge " : "icmp sge ") << opLT << " " << tReg << ", " << lReg << "\n";
     out << "    " << cmp2 << " = " << (isFloat ? "fcmp ole " : "icmp sle ") << opLT << " " << tReg << ", " << uReg << "\n";
 
@@ -286,9 +186,9 @@ std::string CodeGen::genBetweenExpr(ASTNode* node, std::ostream& out) {
 
 std::string CodeGen::genBinaryExpr(ASTNode* node, const std::string& expectedType, std::ostream& out) {
     auto* binary     = static_cast<BinaryExprNode*>(node);
-    std::string opLT = llvmType(binary->opType);
-    bool isOpFloat   = (binary->opType == "float" || binary->opType == "double");
-    if (binary->opType == "string") {
+    std::string opLT = llvmType(binary->resolvedType);
+    bool isOpFloat   = (binary->resolvedType == "float" || binary->resolvedType == "double");
+    if (binary->resolvedType == "string") {
         std::string lReg = genExpression(binary->left.get(),  "string", out);
         std::string rReg = genExpression(binary->right.get(), "string", out);
         if (binary->optr == "+") {
@@ -326,11 +226,11 @@ std::string CodeGen::genBinaryExpr(ASTNode* node, const std::string& expectedTyp
         return emitLoad("i1", resAlloc, out);
     }
     if (binary->optr == "**") {
-        std::string lReg = genExpression(binary->left.get(),  binary->opType, out);
-        std::string rReg = genExpression(binary->right.get(), binary->opType, out);
+        std::string lReg = genExpression(binary->left.get(),  binary->resolvedType, out);
+        std::string rReg = genExpression(binary->right.get(), binary->resolvedType, out);
         std::string res  = newReg();
         if (isOpFloat) {
-            if (binary->opType == "float") {
+            if (binary->resolvedType == "float") {
                 std::string ld = newReg(), rd = newReg(), pw = newReg();
                 out << "    " << ld  << " = fpext float " << lReg << " to double\n";
                 out << "    " << rd  << " = fpext float " << rReg << " to double\n";
@@ -348,12 +248,12 @@ std::string CodeGen::genBinaryExpr(ASTNode* node, const std::string& expectedTyp
         }
         return res;
     }
-    std::string lReg   = genExpression(binary->left.get(),  binary->opType, out);
-    std::string rReg   = genExpression(binary->right.get(), binary->opType, out);
+    std::string lReg = genExpression(binary->left.get(),  binary->resolvedType, out);
+    std::string rReg = genExpression(binary->right.get(), binary->resolvedType, out);
     std::string resReg = emitBinaryOp(binary->optr, opLT, isOpFloat, lReg, rReg, out);
     if (resReg == "0") return "0";
     bool expectFloat = (expectedType == "float" || expectedType == "double");
-    bool gotInt      = (binary->opType == "int"  || binary->opType == "bigint");
+    bool gotInt= (binary->resolvedType == "int"  || binary->resolvedType == "bigint");
     if (expectFloat && gotInt) {
         std::string promoted = newReg();
         out << "    " << promoted << " = sitofp " << opLT << " " << resReg << " to " << llvmType(expectedType) << "\n";
@@ -363,15 +263,15 @@ std::string CodeGen::genBinaryExpr(ASTNode* node, const std::string& expectedTyp
 }
 
 std::string CodeGen::genTernaryExpr(ASTNode* node, std::ostream& out) {
-    auto* tern           = static_cast<TernaryExprNode*>(node);
-    std::string llvmRT   = llvmType(tern->resolvedType);
+    auto* tern= static_cast<TernaryExprNode*>(node);
+    std::string llvmRT = llvmType(tern->resolvedType);
     std::string resAlloc = emitAlloca(llvmRT, out);
-    std::string condReg  = genExpression(tern->condition.get(), "bool", out);
+    std::string condReg = genExpression(tern->condition.get(), "bool", out);
 
     int id = ++regCounter;
-    std::string trueBlk  = "tern_true_"  + std::to_string(id);
+    std::string trueBlk = "tern_true_"  + std::to_string(id);
     std::string falseBlk = "tern_false_" + std::to_string(id);
-    std::string endBlk   = "tern_end_"   + std::to_string(id);
+    std::string endBlk  = "tern_end_"   + std::to_string(id);
 
     out << "    br i1 " << condReg << ", label %" << trueBlk << ", label %" << falseBlk << "\n";
 

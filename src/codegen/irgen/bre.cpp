@@ -14,7 +14,7 @@ std::string CodeGen::genBREPrintCall(ASTNode* node, std::ostream& out) {
     const std::string& callee = call->callee;
 
     auto emitPrint = [&](ASTNode* arg) {
-        std::string argType = inferType(arg);
+        std::string argType = arg->resolvedType;
         std::string sym, llvmT;
         if      (argType == "int")    { sym = "__bery_print_int";    llvmT = "i32"; }
         else if (argType == "bigint") { sym = "__bery_print_bigint"; llvmT = "i64"; }

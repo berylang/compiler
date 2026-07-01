@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 /*
 
 
@@ -50,6 +51,7 @@ enum class NodeType {
 struct ASTNode {
     NodeType type;
     int line;
+    std::string resolvedType;
     virtual ~ASTNode() = default;
 };
 

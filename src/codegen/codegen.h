@@ -99,9 +99,6 @@ private:
    void genForStmt(ASTNode* node, std::ostream& out);
    void genForInStmt(ASTNode* node, std::ostream& out);
    
-   // @todo - remove this after adding 'resoledType' field inside each symbol stored in the Table.
-   std::string inferType(ASTNode* node);
-   
    // @allocation helpers
    int alignOf(const std::string& llvmT);
    std::string emitAlloca(const std::string& llvmT, std::ostream& out);

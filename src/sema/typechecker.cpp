@@ -62,28 +62,34 @@ std::string TypeChecker::checkBinaryExpr(ASTNode* node) {
     std::string rType = analyzeExpression(binary->right.get());
 
     if (lType == "string" && rType == "string") {
-        if (binary->optr == "+") return "string";
-        if (binary->optr == "==" || binary->optr == "!=") return "bool";
+        if (binary->optr == "+") {
+            binary->resolvedType = "string";
+            return binary->resolvedType;
+        }
+        if (binary->optr == "==" || binary->optr == "!=") {
+            binary->resolvedType = "bool";
+            return binary->resolvedType;
+        }
     }
 
     if (binary->optr == "&&" || binary->optr == "||") {
         if (lType != "bool" || rType != "bool") {
             std::cerr << "Bery:Error [Line " << binary->line << "]: Logical operator '" << binary->optr << "' cannot be used on type '" << lType << "' and '" << rType << "'\n";
             errors = true;
-            return "unknown";
+            binary->resolvedType = "unknown";
+            return binary->resolvedType;
         }
-        binary->opType = "bool";
-        return "bool";
+        binary->resolvedType = "bool";
+        return binary->resolvedType;
     }
 
     std::string resolved = resolveNumericPromotion(lType, rType);
     if (resolved.empty()) {
         std::cerr << "Bery:Error [Line " << binary->line << "]: Type mismatch in binary expression '" << lType << "' and '" << rType << "'\n";
         errors = true;
-        return "unknown";
+        binary->resolvedType = "unknown";
+        return binary->resolvedType;
     }
-
-    binary->opType = resolved;
 
     if (binary->optr == "==" || binary->optr == "!=" ||
         binary->optr == ">"  || binary->optr == ">=" ||
@@ -92,35 +98,43 @@ std::string TypeChecker::checkBinaryExpr(ASTNode* node) {
             if (lType == "string" || lType == "bool" || rType == "string" || rType == "bool") {
                 std::cerr << "Bery:Error [Line " << binary->line << "]: Relational operator '" << binary->optr << "' cannot be used on type '" << lType << "' and '" << rType << "'\n";
                 errors = true;
-                return "unknown";
+                binary->resolvedType = "unknown";
+                return binary->resolvedType;
             }
         }
-        return "bool";
+        binary->resolvedType = "bool";
+        return binary->resolvedType;
     }
 
     if (binary->optr == "<<" || binary->optr == ">>") {
         if (rType != "int" && rType != "bigint") {
             std::cerr << "Bery:Error [Line " << binary->line << "]: Right operand of shift must be an integer type\n";
             errors = true;
-            return "unknown";
+            binary->resolvedType = "unknown";
+            return binary->resolvedType;
         }
         if (resolved != "int" && resolved != "bigint") {
             std::cerr << "Bery:Error [Line " << binary->line << "]: Left operand of shift must be an integer type\n";
             errors = true;
-            return "unknown";
+            binary->resolvedType = "unknown";
+            return binary->resolvedType;
         }
-        return resolved;
+        binary->resolvedType = resolved;
+        return binary->resolvedType;
     }
 
     if (binary->optr == "&" || binary->optr == "^" || binary->optr == "|") {
         if ((lType != "int" && lType != "bigint") || (rType != "int" && rType != "bigint")) {
             std::cerr << "Bery:Error [Line " << binary->line << "]: Bitwise operators require integer operands\n";
             errors = true;
-            return "unknown";
+            binary->resolvedType = "unknown";
+            return binary->resolvedType;
         }
-        return resolved;
+        binary->resolvedType = resolved;
+        return binary->resolvedType;
     }
-    return resolved;
+    binary->resolvedType = resolved;
+    return binary->resolvedType;
 }
 
 std::string TypeChecker::checkTernaryExpr(ASTNode* node) {
@@ -129,7 +143,8 @@ std::string TypeChecker::checkTernaryExpr(ASTNode* node) {
     if (condType != "bool") {
         std::cerr << "Bery:Error [Line " << tern->line << "]: Ternary condition must be 'bool', got '" << condType << "'\n";
         errors = true;
-        return "unknown";
+        tern->resolvedType = "unknown";
+        return tern->resolvedType;
     }
 
     std::string tType = analyzeExpression(tern->trueExpr.get());
@@ -139,11 +154,12 @@ std::string TypeChecker::checkTernaryExpr(ASTNode* node) {
     if (resolved.empty()) {
         std::cerr << "Bery:Error [Line " << tern->line << "]: Ternary branch type mismatch ('" << tType << "' vs '" << fType << "')\n";
         errors = true;
-        return "unknown";
+        tern->resolvedType = "unknown";
+        return tern->resolvedType;
     }
 
     tern->resolvedType = resolved;
-    return resolved;
+    return tern->resolvedType;
 }
 
 std::string TypeChecker::checkUnaryExpr(ASTNode* node) {
@@ -153,13 +169,16 @@ std::string TypeChecker::checkUnaryExpr(ASTNode* node) {
         if(unary->operand->type != NodeType::IDENT){
             std::cerr<<"Bery:Error [Line "<< unary->line <<"]: Identifier requried as operand of increment or decrement operator\n";
             errors = true;
-            return "unknown";
+            unary->resolvedType = "unknown";
+            return unary->resolvedType;
         }
     }
     if(unary->optr == "!"){
-        return "bool";
+        unary->resolvedType = "bool";
+        return unary->resolvedType;
     }
-    return optype;
+    unary->resolvedType = optype;
+    return unary->resolvedType;
 }
 
 std::string TypeChecker::checkBetweenExpr(ASTNode* node) {
@@ -175,7 +194,8 @@ std::string TypeChecker::checkBetweenExpr(ASTNode* node) {
     if(!validType(valueType) || !validType(lowerType) || !validType(upperType)){
         std::cerr<<"Bery:Error [Line "<< between->line <<"]: Between operator supports only int, bigint, float, double and char\n";
         errors = true;
-        return "unknown";
+        between->resolvedType = "unknown";
+        return between->resolvedType;
     }
 
     std::string dominentType = "int";
@@ -183,8 +203,8 @@ std::string TypeChecker::checkBetweenExpr(ASTNode* node) {
     else if (valueType == "float" || lowerType=="float" || upperType=="float") dominentType = "float";
     else if (valueType == "bigint" || lowerType=="bigint" || upperType=="bigint") dominentType = "bigint";
 
-    between->opType = dominentType;
-    return "bool";
+    between->resolvedType = dominentType;
+    return between->resolvedType;
 }
 
 std::string TypeChecker::checkCallExpr(ASTNode* node) {
@@ -195,6 +215,12 @@ std::string TypeChecker::checkCallExpr(ASTNode* node) {
         "inputInt", "inputBigInt", "inputFloat",
         "inputDouble", "inputBool", "inputChar", "inputString"
     };
+
+    static const std::unordered_map<std::string, std::string> inputTypes = {
+        {"inputInt", "int"}, {"inputBigInt", "bigint"}, {"inputFloat", "float"},
+        {"inputDouble", "double"}, {"inputBool", "bool"}, {"inputChar", "char"}, {"inputString", "string"}
+    };
+
     if (builtinIO.count(call->callee)) {
         if (call->callee == "print" && call->arguments.size() != 1) {
             std::cerr << "Bery:Error [Line " << call->line << "]: print() expects exactly 1 argument\n";
@@ -204,73 +230,94 @@ std::string TypeChecker::checkCallExpr(ASTNode* node) {
             std::cerr << "Bery:Error [Line " << call->line << "]: println() expects 0 or 1 argument\n";
             errors = true;
         }
-        if (call->callee != "print" && call->callee != "println") {
-            if (call->arguments.size() != 1) {
-                std::cerr << "Bery:Error [Line " << call->line << "]: " << call->callee << "() expects exactly 1 argument\n";
-                errors = true;
-            }
+        if (call->callee != "print" && call->callee != "println" && call->arguments.size() != 1) {
+            std::cerr << "Bery:Error [Line " << call->line << "]: " << call->callee << "() expects exactly 1 argument\n";
+            errors = true;
         }
-        if (call->callee == "inputInt")    return "int";
-        if (call->callee == "inputBigInt") return "bigint";
-        if (call->callee == "inputFloat")  return "float";
-        if (call->callee == "inputDouble") return "double";
-        if (call->callee == "inputBool")   return "bool";
-        if (call->callee == "inputChar")   return "char";
-        if (call->callee == "inputString") return "string";
-        return "void";
+        auto it = inputTypes.find(call->callee);
+        call->resolvedType = (it != inputTypes.end()) ? it->second : "void";
+        return call->resolvedType;
     }
     size_t dot = call->callee.find('.');
     if (dot != std::string::npos) {
-        std::string objName = call->callee.substr(0,dot);
-        std::string method= call->callee.substr(dot +1);
+        std::string objName = call->callee.substr(0, dot);
+        std::string method  = call->callee.substr(dot + 1);
+
         if (!symbolTable.exists(objName)) {
             std::cerr << "Bery:Error [Line " << call->line << "]: Undefined variable '" << objName << "'\n";
             errors = true;
-            return "unknown";
+            call->resolvedType = "unknown";
+            return call->resolvedType;
         }
+
         std::string objType = symbolTable.get(objName).type;
+
         if (objType == "string") {
-            if (method == "substr") return "string";
-            if (method == "len")   return "int";
-            if (method == "copy")  return "string";
+            if (method == "substr" || method == "copy") { 
+                call->resolvedType = "string"; 
+                return call->resolvedType; 
+            }
+            if (method == "len")                        { 
+                call->resolvedType = "int";    
+                return call->resolvedType; 
+            }
         }
+
         if (objType.size() > 6 && objType.substr(0, 6) == "array<") {
             std::string elemType = objType.substr(6, objType.size() - 7);
-            if (method == "push" || method == "pop" ||method == "insert" ||  method == "remove" ) return "void";
-            if (method == "len") return "int";
-            if (method == "get") return elemType;
+            if (method == "push" || method == "pop" || method == "insert" || method == "remove") {
+                call->resolvedType = "void"; 
+                return call->resolvedType;
+            }
+            if (method == "len") { 
+                call->resolvedType = "int";
+                return call->resolvedType; 
+                }
+            if (method == "get") { 
+                call->resolvedType = elemType; 
+                return call->resolvedType; 
+            }
         }
+
         std::cerr << "Bery:Error [Line " << call->line << "]: Unknown method '" << method << "' on type '" << objType << "'\n";
         errors = true;
-        return "unknown";
+        call->resolvedType = "unknown";
+        return call->resolvedType;
     }
-    
+
     if (functions.find(call->callee) == functions.end()) {
         std::cerr << "Bery:Error [Line " << call->line << "]: Undefined function '" << call->callee << "'\n";
-        errors = true; 
-        return "unknown";
+        errors = true;
+        call->resolvedType = "unknown";
+        return call->resolvedType;
     }
-    
+
     FunctionSignature& sig = functions[call->callee];
     if (sig.paramTypes.size() != call->arguments.size()) {
-        std::cerr << "Bery:Error [Line " << call->line << "]: Function '" << call->callee << "' expects " << sig.paramTypes.size() << " arguments, got " << call->arguments.size() << "\n";
-        errors = true; 
-        return "unknown";
+        std::cerr << "Bery:Error [Line " << call->line << "]: Function '" << call->callee << "' expects "
+                   << sig.paramTypes.size() << " arguments, got " << call->arguments.size() << "\n";
+        errors = true;
+        call->resolvedType = "unknown";
+        return call->resolvedType;
     }
-    
+
     for (size_t i = 0; i < call->arguments.size(); ++i) {
         std::string argType = analyzeExpression(call->arguments[i].get());
         if (argType != "unknown" && argType != sig.paramTypes[i]) {
-            if (!(sig.paramTypes[i] == "float" && argType == "int") &&
+            if (!(sig.paramTypes[i] == "float"  && argType == "int") &&
                 !(sig.paramTypes[i] == "double" && argType == "float") &&
                 !(sig.paramTypes[i] == "double" && argType == "int") &&
                 !(sig.paramTypes[i] == "bigint" && argType == "int")) {
-                std::cerr << "Bery:Error [Line " << call->line << "]: Type mismatch in argument " << i+1 << " of '" << call->callee << "'. Expected '" << sig.paramTypes[i] << "', got '" << argType << "'\n";
+                std::cerr << "Bery:Error [Line " << call->line << "]: Type mismatch in argument " << i+1
+                           << " of '" << call->callee << "'. Expected '" << sig.paramTypes[i]
+                           << "', got '" << argType << "'\n";
                 errors = true;
             }
         }
     }
-    return sig.returnType;
+
+    call->resolvedType = sig.returnType;
+    return call->resolvedType;
 }
 
 std::string TypeChecker::checkIndexExpr(ASTNode* node) {
@@ -278,12 +325,14 @@ std::string TypeChecker::checkIndexExpr(ASTNode* node) {
     if (!symbolTable.exists(idxNode->name)) {
         std::cerr << "Bery:Error [Line " << idxNode->line << "]: Undefined array '" << idxNode->name << "'\n";
         errors = true;
-        return "unknown";
+        idxNode->resolvedType = "unknown";
+        return idxNode->resolvedType;
     }
     Symbol& sym = symbolTable.get(idxNode->name);
     if (sym.type.size() > 6 && sym.type.substr(0, 6) == "array<") {
         std::string elemType = sym.type.substr(6, sym.type.size() - 7);
-        return elemType;
+        idxNode->resolvedType = elemType;
+        return idxNode->resolvedType;
     }
 
     int dimCount = 0;
@@ -296,17 +345,20 @@ std::string TypeChecker::checkIndexExpr(ASTNode* node) {
     if (dimCount == 0) {
         std::cerr << "Bery:Error [Line " << idxNode->line << "]: Variable '" << idxNode->name << "' is not subscriptable\n";
         errors = true;
-        return "unknown";
+        idxNode->resolvedType = "unknown";
+        return idxNode->resolvedType;
     }
 
     if (idxNode->indices.size() > (size_t)dimCount) {
         std::cerr << "Bery:Error [Line " << idxNode->line << "]: Too many indices for array '" << idxNode->name << "'\n";
         errors = true;
-        return "unknown";
+        idxNode->resolvedType = "unknown";
+        return idxNode->resolvedType;
     }
     for (auto& index : idxNode->indices) analyzeExpression(index.get());
     std::string baseType = sym.type.substr(0, sym.type.find('['));
-    return baseType;
+    idxNode->resolvedType = baseType;
+    return idxNode->resolvedType;
 }
 
 std::string TypeChecker::checkAssignmentExpr(ASTNode* node) {
@@ -329,13 +381,15 @@ std::string TypeChecker::checkAssignmentExpr(ASTNode* node) {
         if (!symbolTable.exists(ident->name)) {
             std::cerr << "Bery:Error [Line " << assign->line << "] : Undefined variable '" << ident->name << "'\n";
             errors = true;
-            return "unknown";
+            ident->resolvedType = "unknown";
+            return ident->resolvedType;
         }
         Symbol& s = symbolTable.get(ident->name);
         if (s.isConst) {
             std::cerr << "Bery:Error [Line " << assign->line << "] : cannot reassign constant variable '" << ident->name << "'\n";
             errors = true;
-            return "unknown";
+            ident->resolvedType = "unknown";
+            return ident->resolvedType;
         }
         s.isInitialized = true;
         targetType = s.type;
@@ -345,21 +399,27 @@ std::string TypeChecker::checkAssignmentExpr(ASTNode* node) {
         if (!symbolTable.exists(idxNode->name)) {
             std::cerr << "Bery:Error [Line " << idxNode->line << "]: Undefined array '" << idxNode->name << "'\n";
             errors = true;
-            return "unknown";
+            assign->resolvedType = "unknown";
+            return assign->resolvedType;
         }
         Symbol& sym = symbolTable.get(idxNode->name);
         if (sym.type.substr(0, 6) == "array<") {
             analyzeExpression(assign->value.get());
-            return "void";
+            assign->resolvedType = "void";
+            return assign->resolvedType;
         }
         targetName = idxNode->name;
 
         targetType = analyzeExpression(assign->target.get());
-        if (targetType == "unknown") return "unknown";
+        if (targetType == "unknown") {
+            assign->resolvedType = "unknown";
+            return assign->resolvedType;
+        }
     } else {
         std::cerr << "Bery:Error [Line " << assign->line << "] : Invalid assignment target\n";
         errors = true;
-        return "unknown";
+        assign->resolvedType = "unknown";
+        return assign->resolvedType;
     }
 
     std::string exptype = analyzeExpression(assign->value.get());
@@ -370,10 +430,12 @@ std::string TypeChecker::checkAssignmentExpr(ASTNode* node) {
             
             std::cerr << "Bery:Error [Line " << assign->line << "] : Type missmatch for assignment to  '" << targetName << "'. Expected '" << targetType << "', got '" << exptype << "'\n";
             errors = true;
-            return "unknown";
+            assign->resolvedType = "unknown";
+            return assign->resolvedType;
         }
     }
-    return targetType;
+    assign->resolvedType = targetType;
+    return assign->resolvedType;
 }
 
 std::string TypeChecker::checkCastExpr(ASTNode* node) {
@@ -388,9 +450,11 @@ std::string TypeChecker::checkCastExpr(ASTNode* node) {
     if (!isPrimitive(srcType) || !isPrimitive(castNode->targetType)) {
         std::cerr << "Bery:Error [Line " << castNode->line << "]: Invalid cast from '" << srcType << "' to '"  << castNode->targetType   << "'.\n";
         errors = true;
-        return "unknown";
+        castNode->resolvedType = "unknown";
+        return castNode->resolvedType;
     }
-    return castNode->targetType;
+    castNode->resolvedType = castNode->targetType;
+    return castNode->resolvedType;
 }
 
 std::string TypeChecker::checkIdentifier(ASTNode* node) {
@@ -402,32 +466,49 @@ std::string TypeChecker::checkIdentifier(ASTNode* node) {
         if (!symbolTable.exists(objName)) {
             std::cerr << "Bery: Error: [Line " << ident->line << "]: Undefined variable '" << objName << "'\n";
             errors = true;
-            return "unknown";
+            node->resolvedType = "unknown";
+            return node->resolvedType;
         }
-        if(propName == "len") return "int";
+        if(propName == "len") { ident->resolvedType = "int"; return ident->resolvedType; }
         std::cerr << "Bery:Error [Line " << ident->line << "]: Unknown property '" << propName << "'\n";
         errors = true;
-        return "unknown";
+        node->resolvedType = "unknown";
+        return node->resolvedType;
     }
     if(!symbolTable.exists(ident->name)){
         std::cerr<<"Bery:Error [Line "<< ident->line <<"]: Undefined Variable '"<<ident->name<<"'\n";
         errors=true;
-        return "unknown";
+        node->resolvedType = "unknown";
+        return node->resolvedType;
     }
-    return symbolTable.get(ident->name).type;
+    ident->resolvedType = symbolTable.get(ident->name).type;
+    return ident->resolvedType;
 }
 
 std::string TypeChecker::checkLiteral(ASTNode* node) {
     switch (node->type) {
-        case NodeType::INT_LIT:     return "int";
-        case NodeType::DECIMAL_LIT: return "float";
-        case NodeType::BOOL_LIT:    return "bool";
-        case NodeType::CHAR_LIT:    return "char";
-        case NodeType::STRING_LIT:  return "string";
-        case NodeType::NULL_LIT:    return "null";
+        case NodeType::INT_LIT:     
+            node->resolvedType = "int";
+            return node->resolvedType;
+        case NodeType::DECIMAL_LIT:     
+            node->resolvedType = "float";
+            return node->resolvedType;
+        case NodeType::CHAR_LIT:     
+            node->resolvedType = "char";
+            return node->resolvedType;
+        case NodeType::BOOL_LIT:     
+            node->resolvedType = "bool";
+            return node->resolvedType;
+        case NodeType::STRING_LIT:     
+            node->resolvedType = "string";
+            return node->resolvedType;  
+        case NodeType::NULL_LIT:     
+            node->resolvedType = "null";
+            return node->resolvedType;
         default:
             std::cerr << "Bery:Error [Line " << node->line << "]: Unknown literal type\n";
             errors = true;
-            return "unknown";
+            node->resolvedType = "unknown";
+            return node->resolvedType;
     }
 }

@@ -31,16 +31,16 @@ struct BinaryExprNode : public ASTNode{
     std::string optr;
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
-    std::string opType;
+    
 
     BinaryExprNode(std::string& opr, std::unique_ptr<ASTNode> l,std::unique_ptr<ASTNode> r, int ln):
         optr(opr),
         left(std::move(l)),
-        right(std::move(r)),
-        opType("int")
+        right(std::move(r))
         {
             type = NodeType::BINARY_EXPR;
             line = ln;
+            resolvedType = "int";
         }
 
 };
@@ -50,7 +50,7 @@ struct BetweenExprNode : public ASTNode{
     std::unique_ptr<ASTNode> lower;
     std::unique_ptr<ASTNode> upper;
     bool isNegated;
-    std::string opType;
+    
 
     BetweenExprNode(
         std::unique_ptr<ASTNode> val,
@@ -62,11 +62,11 @@ struct BetweenExprNode : public ASTNode{
         : value(std::move(val)),
           lower(std::move(low)),
           upper(std::move(up)),
-          isNegated(neg),
-          opType("int")
+          isNegated(neg)
     {
         type = NodeType::BETWEEN_EXPR;
         line = ln;
+        resolvedType = "int";
     }
 };
 
@@ -74,12 +74,12 @@ struct TernaryExprNode : public ASTNode {
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<ASTNode> trueExpr;
     std::unique_ptr<ASTNode> falseExpr;
-    std::string resolvedType;
 
     TernaryExprNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> te, std::unique_ptr<ASTNode> fe, int ln) :
-    condition(std::move(c)), trueExpr(std::move(te)), falseExpr(std::move(fe)), resolvedType("int") {
+    condition(std::move(c)), trueExpr(std::move(te)), falseExpr(std::move(fe)) {
         type = NodeType::TERNARY_EXPR;
         line = ln;
+        resolvedType = "int";
     }
 };
 
