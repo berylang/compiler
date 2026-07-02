@@ -12,9 +12,23 @@
 #include "../parser/ast/expressions.h"
 #include "../parser/ast/literals.h"
 #include "../parser/ast/functions.h"
+#include "../parser/ast/vardecl.h"
 #include "../parser/ast/classes.h"
 #include <iostream>
 #include <unordered_set>
+
+
+static std::vector<std::string> splitDots(const std::string& s) {
+    std::vector<std::string> parts;
+    size_t start = 0, pos;
+    while ((pos = s.find('.', start)) != std::string::npos) {
+        parts.push_back(s.substr(start, pos - start));
+        start = pos + 1;
+    }
+    parts.push_back(s.substr(start));
+    return parts;
+}
+
 
 TypeChecker::TypeChecker(SymbolTable& symTable, std::unordered_map<std::string, FunctionSignature>& funcs, bool& errorsFlag, std::unordered_map<std::string, ClassDefNode*>& classesMap) 
     : symbolTable(symTable), functions(funcs), errors(errorsFlag), classes(classesMap) {}
@@ -212,15 +226,13 @@ std::string TypeChecker::checkBetweenExpr(ASTNode* node) {
 std::string TypeChecker::checkCallExpr(ASTNode* node) {
     auto* call = static_cast<CallExprNode*>(node);
 
-    static const std::unordered_set<std::string> builtinIO = {
-        "print", "println",
-        "inputInt", "inputBigInt", "inputFloat",
-        "inputDouble", "inputBool", "inputChar", "inputString"
-    };
+    static const std::unordered_set<std::string> builtinIO = {"print", "println","inputInt", "inputBigInt", "inputFloat","inputDouble", "inputBool", "inputChar", "inputString"  };
 
     static const std::unordered_map<std::string, std::string> inputTypes = {
-        {"inputInt", "int"}, {"inputBigInt", "bigint"}, {"inputFloat", "float"},
-        {"inputDouble", "double"}, {"inputBool", "bool"}, {"inputChar", "char"}, {"inputString", "string"}
+        {"inputInt", "int"}, 
+        {"inputBigInt", "bigint"}, {"inputFloat", "float"},
+        {"inputDouble", "double"}, {"inputBool", "bool"}, 
+        {"inputChar", "char"}, {"inputString", "string"}
     };
 
     if (builtinIO.count(call->callee)) {
@@ -244,10 +256,17 @@ std::string TypeChecker::checkCallExpr(ASTNode* node) {
         call->resolvedType = (it != inputTypes.end()) ? it->second : "void";
         return call->resolvedType;
     }
+    
     size_t dot = call->callee.find('.');
     if (dot != std::string::npos) {
+        std::vector<std::string> parts = splitDots(call->callee);
+        std::string method = parts.back();
+        std::vector<std::string> headParts(parts.begin(), parts.end() - 1);
+        std::string objType = resolveChainType(headParts, call->line);
+        if (objType == "unknown") { call->resolvedType = "unknown"; return call->resolvedType; }
+
         std::string objName = call->callee.substr(0, dot);
-        std::string method  = call->callee.substr(dot + 1);
+        method = call->callee.substr(dot + 1);
 
         if (!symbolTable.exists(objName)) {
             std::cerr << "Bery:Error [Line " << call->line << "]: Undefined variable '" << objName << "'\n";
@@ -256,7 +275,7 @@ std::string TypeChecker::checkCallExpr(ASTNode* node) {
             return call->resolvedType;
         }
 
-        std::string objType = symbolTable.get(objName).type;
+        objType = symbolTable.get(objName).type;
 
         if (objType == "string") {
             if (method == "substr" || method == "copy") { 
@@ -283,6 +302,47 @@ std::string TypeChecker::checkCallExpr(ASTNode* node) {
                 call->resolvedType = elemType; 
                 return call->resolvedType; 
             }
+        }
+
+        auto classIt = classes.find(objType);
+        if (classIt != classes.end()) {
+            ClassDefNode* cls = classIt->second;
+            FunctionDefNode* methodDef = nullptr;
+            if (cls->methods) {
+                for (auto& m : cls->methods->methods) {
+                    auto* f = static_cast<FunctionDefNode*>(m.get());
+                    if (f->name == method) { methodDef = f; break; }
+                }
+            }
+            if (!methodDef) {
+                std::cerr << "Bery:Error [Line " << call->line << "]: Class '" << objType << "' has no method '" << method << "'\n";
+                errors = true;
+                call->resolvedType = "unknown";
+                return call->resolvedType;
+            }
+            if (methodDef->parameters.size() != call->arguments.size()) {
+                std::cerr << "Bery:Error [Line " << call->line << "]: Method '" << method << "' expects "
+                        << methodDef->parameters.size() << " arguments, got " << call->arguments.size() << "\n";
+                errors = true;
+                call->resolvedType = "unknown";
+                return call->resolvedType;
+            }
+            for (size_t i = 0; i < call->arguments.size(); ++i) {
+                std::string argType   = analyzeExpression(call->arguments[i].get());
+                std::string paramType = methodDef->parameters[i].first;
+                if (argType != "unknown" && argType != paramType) {
+                    if (!(paramType == "float"  && argType == "int") &&
+                        !(paramType == "double" && argType == "float") &&
+                        !(paramType == "double" && argType == "int") &&
+                        !(paramType == "bigint" && argType == "int")) {
+                        std::cerr << "Bery:Error [Line " << call->line << "]: Type mismatch in argument " << i+1
+                                << " of '" << method << "'. Expected '" << paramType << "', got '" << argType << "'\n";
+                        errors = true;
+                    }
+                }
+            }
+            call->resolvedType = methodDef->returnType.empty() ? "void" : methodDef->returnType;
+            return call->resolvedType;
         }
 
         std::cerr << "Bery:Error [Line " << call->line << "]: Unknown method '" << method << "' on type '" << objType << "'\n";
@@ -383,23 +443,48 @@ std::string TypeChecker::checkAssignmentExpr(ASTNode* node) {
     if (assign->target->type == NodeType::IDENT) {
         auto* ident = static_cast<IdentNode*>(assign->target.get());
         targetName = ident->name;
+        size_t dot = ident->name.find('.');
+        if (dot != std::string::npos) {
+            std::vector<std::string> parts = splitDots(ident->name);
+            std::vector<std::string> headParts(parts.begin(), parts.end() - 1);
+            std::string fieldName = parts.back();
+            std::string containerType = resolveChainType(headParts, assign->line);
+            if (containerType == "unknown") { assign->resolvedType = "unknown"; return assign->resolvedType; }
+            auto classIt = classes.find(containerType);
+            if (classIt == classes.end()) {
+                std::cerr << "Bery:Error [Line " << assign->line << "]: '" << headParts.back() << "' is not an object\n";
+                errors = true;
+                assign->resolvedType = "unknown";
+                return assign->resolvedType;
+            }
+            std::string fieldType = resolveFieldType(classIt->second, fieldName);
+            if (fieldType.empty()) {
+                std::cerr << "Bery:Error [Line " << assign->line << "]: Class '" << containerType<< "' has no member '" << fieldName << "'\n";
+                errors = true;
+                assign->resolvedType = "unknown";
+                return assign->resolvedType;
+            }
+            targetType = fieldType;
+        } else {
 
-        if (!symbolTable.exists(ident->name)) {
-            std::cerr << "Bery:Error [Line " << assign->line << "] : Undefined variable '" << ident->name << "'\n";
-            errors = true;
-            ident->resolvedType = "unknown";
-            return ident->resolvedType;
-        }
-        Symbol& s = symbolTable.get(ident->name);
-        if (s.isConst) {
-            std::cerr << "Bery:Error [Line " << assign->line << "] : cannot reassign constant variable '" << ident->name << "'\n";
-            errors = true;
-            ident->resolvedType = "unknown";
-            return ident->resolvedType;
-        }
-        s.isInitialized = true;
-        targetType = s.type;
 
+
+            if (!symbolTable.exists(ident->name)) {
+                std::cerr << "Bery:Error [Line " << assign->line << "]: Undefined variable '" << ident->name << "'\n";
+                errors = true;
+                ident->resolvedType = "unknown";
+                return ident->resolvedType;
+            }
+            Symbol& s = symbolTable.get(ident->name);
+            if (s.isConst) {
+                std::cerr << "Bery:Error [Line " << assign->line << "]: cannot reassign constant variable '" << ident->name << "'\n";
+                errors = true;
+                ident->resolvedType = "unknown";
+                return ident->resolvedType;
+            }
+            s.isInitialized = true;
+            targetType = s.type;
+        }
     } else if (assign->target->type == NodeType::INDEX_EXPR) {
         auto* idxNode = static_cast<IndexExprNode*>(assign->target.get());
         if (!symbolTable.exists(idxNode->name)) {
@@ -467,19 +552,22 @@ std::string TypeChecker::checkIdentifier(ASTNode* node) {
     auto* ident = static_cast<IdentNode*>(node);
     size_t dot = ident->name.find('.');
     if (dot != std::string::npos) {
-        std::string objName = ident->name.substr(0, dot);
-        std::string propName = ident->name.substr(dot+1);
-        if (!symbolTable.exists(objName)) {
-            std::cerr << "Bery: Error: [Line " << ident->line << "]: Undefined variable '" << objName << "'\n";
-            errors = true;
-            node->resolvedType = "unknown";
-            return node->resolvedType;
+        std::vector<std::string> parts = splitDots(ident->name);
+        if (parts.back() == "len") {
+            std::vector<std::string> headParts(parts.begin(), parts.end() - 1);
+            std::string headType = resolveChainType(headParts, ident->line);
+            if (headType == "unknown") { 
+                node->resolvedType = "unknown"; 
+                return node->resolvedType; 
+            
+            }
+            if (headType == "string" ||(headType.size() > 6 && headType.substr(0, 6) == "array<")) {
+                ident->resolvedType = "int";
+                return ident->resolvedType;
+            }
         }
-        if(propName == "len") { ident->resolvedType = "int"; return ident->resolvedType; }
-        std::cerr << "Bery:Error [Line " << ident->line << "]: Unknown property '" << propName << "'\n";
-        errors = true;
-        node->resolvedType = "unknown";
-        return node->resolvedType;
+        ident->resolvedType = resolveChainType(parts, ident->line);
+        return ident->resolvedType;
     }
     if(!symbolTable.exists(ident->name)){
         std::cerr<<"Bery:Error [Line "<< ident->line <<"]: Undefined Variable '"<<ident->name<<"'\n";
@@ -536,3 +624,37 @@ std::string TypeChecker::checkNewExpr(ASTNode* node) {
     return newExpr->resolvedType;
 }
 
+
+std::string TypeChecker::resolveFieldType(ClassDefNode* cls, const std::string& fieldName) {
+    if(!cls->attributes) {return "";}
+    for(auto& attrNode :cls->attributes->attributes) {
+        auto* field = static_cast<VarDeclNode*>(attrNode.get());
+        if (field->name == fieldName) return field->varType;
+    }
+    return "";
+}
+
+std::string TypeChecker::resolveChainType(const std::vector<std::string>& parts, int line) {
+    if (!symbolTable.exists(parts[0])) {
+        std::cerr << "Bery:Error [Line " << line << "]: Undefined variable '" << parts[0] << "'\n";
+        errors = true;
+        return "unknown";
+    }
+    std::string curType = symbolTable.get(parts[0]).type;
+    for (size_t i =1; i<parts.size(); ++i) {
+        auto classIt = classes.find(curType);
+        if (classIt == classes.end()) {
+            std::cerr << "Bery:Error [Line " << line << "]: '" << curType << "' is not an object, cannot access '." << parts[i] << "'\n";
+            errors = true;
+            return "unknown";
+        }
+        std::string fieldType = resolveFieldType(classIt->second, parts[i]);
+        if (fieldType.empty()){
+            std::cerr << "Bery:Error [Line " <<line << "]: Class '" << curType << "' has no member '" << parts[i] << "'\n";
+            errors = true;
+            return "unknown";
+        }
+        curType = fieldType;
+    }
+    return curType;
+}

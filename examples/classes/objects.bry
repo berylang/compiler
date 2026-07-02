@@ -9,4 +9,6 @@ class Shape {
 }
 run {
     Shape s = new Shape();
+    s.len = 10;
+    println(s.area());
 }
