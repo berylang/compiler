@@ -12,6 +12,7 @@ it contains every helper functions which eventually helps the 'parse()' method.
 #include "ast/blocknode.h"
 #include "../lexer/token.h"
 #include "ast/classes.h"
+#include "ast/accessSpecifier.h"
 #include <vector>
 #include <memory>
 #include <exception>
@@ -53,7 +54,7 @@ private:
 
     // @every parse function
     // @statements
-    std::vector<std::unique_ptr<ASTNode>> parseVarDecl(bool isConst);
+    std::vector<std::unique_ptr<ASTNode>> parseVarDecl(AccessSpecifier access,bool isConst);
     std::unique_ptr<ASTNode> parseLiteral();
     bool isArrayDecl();
     std::unique_ptr<ASTNode> parseArrayDecl();
@@ -97,7 +98,7 @@ private:
     std::unique_ptr<ASTNode> parseForStmt();
 
     // @functions
-    std::unique_ptr<ASTNode> parseFunctionDef();
+    std::unique_ptr<ASTNode> parseFunctionDef(AccessSpecifier access);
     std::unique_ptr<ASTNode> parseCallExpr(const Token& identifierToken);
     std::unique_ptr<ASTNode> parseReturnStmt();
 

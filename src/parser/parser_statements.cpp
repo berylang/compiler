@@ -24,7 +24,7 @@
 #include "ast/importer.h"
 
 
-std::vector<std::unique_ptr<ASTNode>> Parser::parseVarDecl(bool isConst) {
+std::vector<std::unique_ptr<ASTNode>> Parser::parseVarDecl(AccessSpecifier access,bool isConst) {
     std::vector<std::unique_ptr<ASTNode>> decls;
     Token typeToken = advance();
     std::string varType = typeToken.lexeme;
@@ -35,7 +35,7 @@ std::vector<std::unique_ptr<ASTNode>> Parser::parseVarDecl(bool isConst) {
             advance();
             value = parseExpression();
         }
-        decls.push_back(std::make_unique<VarDeclNode>(varType, name.lexeme, std::move(value),name.line, isConst));
+        decls.push_back(std::make_unique<VarDeclNode>(varType, name.lexeme, std::move(value), access,name.line, isConst));
     } while (!isAtEnd() && check(TokenType::TOKEN_COMMA) && (advance(), true));
 
     consume(TokenType::TOKEN_SEMICOLON, "Expected ';'");

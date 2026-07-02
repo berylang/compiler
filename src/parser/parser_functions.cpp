@@ -17,7 +17,7 @@
     
 */
 
-std::unique_ptr<ASTNode> Parser::parseFunctionDef() {
+std::unique_ptr<ASTNode> Parser::parseFunctionDef(AccessSpecifier access) {
     advance(); 
     int line = previous().line;
     Token nameToken = consume(TokenType::TOKEN_IDENT, "Expected function name");
@@ -41,7 +41,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDef() {
 
     consume(TokenType::TOKEN_LBRACE, "Expected '{' before function body");
     auto body = parseBlock();
-    return std::make_unique<FunctionDefNode>(nameToken.lexeme, std::move(params), returnType, std::move(body), line);
+    return std::make_unique<FunctionDefNode>(nameToken.lexeme, std::move(params), returnType, std::move(body),access, line);
 }
 
 std::unique_ptr<ASTNode> Parser::parseCallExpr(const Token& identifierToken) {

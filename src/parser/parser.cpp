@@ -39,7 +39,7 @@ std::unique_ptr<ASTNode> Parser::parse() {
                 program->runBlock = std::move(runBlock);
             } 
             else if (check(TokenType::TOKEN_FUNC)) {
-                program->globals.push_back(parseFunctionDef());
+                program->globals.push_back(parseFunctionDef(AccessSpecifier::PUBLIC));
             } else if (check(TokenType::TOKEN_ENUM)) {
                 program->globals.push_back(parseEnumDecl());
             } else if (check(TokenType::TOKEN_IMPORT)) {
@@ -56,11 +56,11 @@ std::unique_ptr<ASTNode> Parser::parse() {
                         auto decl = parseArrayDecl();
                         program->globals.push_back(std::move(decl));
                     } else {
-                        auto decls = parseVarDecl(isConst);
+                        auto decls = parseVarDecl(AccessSpecifier::PUBLIC,isConst);
                         for (auto& d : decls) program->globals.push_back(std::move(d));
                     }
                 } else if (isClassVarDecl()) { 
-                    auto decls = parseVarDecl(isConst);
+                    auto decls = parseVarDecl(AccessSpecifier::PUBLIC, isConst);
                     for (auto&d : decls) program->globals.push_back(std::move(d));
                 }else {
                     std::cerr << "Bery:Error [Line " << peek().line << "]: Unexpected token '" << peek().lexeme << "'\n";
@@ -183,7 +183,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
 
     if(isTypeToken(peek().type) || isClassVarDecl()){
         if(!isConst && isTypeToken(peek().type) && isArrayDecl()) return parseArrayDecl();
-        std::vector<std::unique_ptr<ASTNode>>decls = parseVarDecl(isConst);
+        std::vector<std::unique_ptr<ASTNode>>decls = parseVarDecl(AccessSpecifier::PUBLIC,isConst);
         if(decls.size() == 1){
             return std::move(decls[0]);    
         };

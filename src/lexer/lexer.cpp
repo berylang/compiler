@@ -65,7 +65,10 @@ static std::unordered_map<std::string, TokenType> keywords = {
     {"class", TokenType::TOKEN_CLASS},
     {"attributes", TokenType::TOKEN_ATTRIBUTES},
     {"methods", TokenType::TOKEN_METHODS},
-    {"new", TokenType::TOKEN_NEW}
+    {"new", TokenType::TOKEN_NEW},
+    {"public", TokenType::TOKEN_PUBLIC},
+    {"private", TokenType::TOKEN_PRIVATE},
+    {"protected", TokenType::TOKEN_PROTECTED},
 };
 
 Lexer::Lexer(const std::string& source) : source(source), current(0), line(1), errors(false) {}

@@ -28,8 +28,25 @@ std::unique_ptr<AttributeSectionNode> Parser::parseAttributeSection() {
     consume(TokenType::TOKEN_DCOLON, "Exptected '::' after attributes seciton verbose");
 
     std::vector<std::unique_ptr<ASTNode>> attributes;
-    while(!isAtEnd() && isTypeToken(peek().type)) {
-        auto vars= parseVarDecl(false);
+    while(!isAtEnd()) {
+
+        AccessSpecifier access = AccessSpecifier::PUBLIC;
+        if(check(TokenType::TOKEN_PUBLIC)){
+            advance();
+            access=AccessSpecifier::PUBLIC;
+        }
+        else if(check(TokenType::TOKEN_PRIVATE)){
+            advance();
+            access=AccessSpecifier::PRIVATE;
+        }
+        else if(check(TokenType::TOKEN_PROTECTED)){
+            advance();
+            access=AccessSpecifier::PROTECTED;
+        }
+        if(!isTypeToken(peek().type))
+            break;
+        
+        auto vars= parseVarDecl(access, false);
         for (auto& v : vars) {
             attributes.push_back(std::move(v));
         }
@@ -43,8 +60,23 @@ std::unique_ptr<MethodSectionNode> Parser::parseMethodSection() {
     consume(TokenType::TOKEN_DCOLON, "Exptected '::' after 'methods");
 
     std::vector<std::unique_ptr<ASTNode>> methods;
-    while(!isAtEnd() && check(TokenType::TOKEN_FUNC)){
-        methods.push_back(parseFunctionDef());
+    while(!isAtEnd()){
+        AccessSpecifier access = AccessSpecifier::PUBLIC;
+        if(check(TokenType::TOKEN_PUBLIC)){
+            advance();
+            access=AccessSpecifier::PUBLIC;
+        }
+        else if(check(TokenType::TOKEN_PRIVATE)){
+            advance();
+            access=AccessSpecifier::PRIVATE;
+        }
+        else if(check(TokenType::TOKEN_PROTECTED)){
+            advance();
+            access=AccessSpecifier::PROTECTED;
+        }
+        if(!check(TokenType::TOKEN_FUNC))
+            break;
+        methods.push_back(parseFunctionDef(access));
     }
 
     return std::make_unique<MethodSectionNode>(std::move(methods), line);

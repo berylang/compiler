@@ -1,6 +1,6 @@
 class Shape {
     attributes[me]::
-        int len;
+        private int len;
         int brd;
 
     methods::
