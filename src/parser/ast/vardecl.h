@@ -1,5 +1,6 @@
 #pragma once
 #include "node.h"
+#include "accessSpecifier.h"
 #include <string>
 #include <memory>
 #include <vector>
@@ -8,11 +9,12 @@ struct VarDeclNode : public ASTNode {
     std::string varType;
     std::string name;
     std::unique_ptr<ASTNode> value;
+    AccessSpecifier access;
     bool isConst;
 
 
-    VarDeclNode(std::string varType, std::string name, std::unique_ptr<ASTNode> value, int l, bool isConst=false) 
-    : varType(varType), name(name), value(std::move(value)), isConst(isConst) {
+    VarDeclNode(std::string varType, std::string name, std::unique_ptr<ASTNode> value, AccessSpecifier access, int l, bool isConst=false) 
+    : varType(varType), name(name), value(std::move(value)),access(access), isConst(isConst) {
         type = NodeType::VAR_DECL;
         line = l;
     }

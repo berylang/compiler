@@ -88,7 +88,7 @@ std::unique_ptr<ASTNode> Parser::parseForStmt() {
         
         if (!check(TokenType::TOKEN_SEMICOLON)) {
             if (isTypeToken(peek().type)) {
-                auto decls = parseVarDecl(false);
+                auto decls = parseVarDecl(AccessSpecifier::PUBLIC,false);
                 
                 if (decls.size() == 1) {
                     init = std::move(decls[0]);

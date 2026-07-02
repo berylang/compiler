@@ -1,6 +1,7 @@
 #pragma once
 #include "node.h"
 #include "blocknode.h"
+#include "accessSpecifier.h"
 #include <string>
 #include <vector>
 #include <memory>
@@ -11,9 +12,10 @@ struct FunctionDefNode : public ASTNode {
     std::vector<std::pair<std::string, std::string>> parameters; 
     std::string returnType;
     std::unique_ptr<BlockNode> body;
+    AccessSpecifier access;
 
-    FunctionDefNode(const std::string& name, std::vector<std::pair<std::string, std::string>> params, const std::string& retType, std::unique_ptr<BlockNode> b, int ln)
-        : name(name), parameters(std::move(params)), returnType(retType), body(std::move(b)) {
+    FunctionDefNode(const std::string& name, std::vector<std::pair<std::string, std::string>> params, const std::string& retType, std::unique_ptr<BlockNode> b,AccessSpecifier access, int ln)
+        : name(name), parameters(std::move(params)), returnType(retType), body(std::move(b)), access(access) {
         type = NodeType::FUNC_DEF;
         line = ln;
     }
