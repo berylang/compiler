@@ -119,6 +119,7 @@ private:
    std::string genCastExpr(ASTNode* node, std::ostream& out);
    std::string genIndexExpr(ASTNode* node, std::ostream& out);
    std::string genCallExpr(ASTNode* node, std::ostream& out);
+   
 
    std::string emitBinaryOp(const std::string& op, const std::string& llvmT, bool isFloat, const std::string& lReg, const std::string& rReg, std::ostream& out);
 
@@ -132,6 +133,6 @@ private:
    };
    std::unordered_map<std::string, ClassLayout> classLayouts;
    void genClassDecl(ASTNode* node);
-   std::string genNewExpr(ASTNode* node, std::ostream& out);
-   
+   std::string genNewExpr(ASTNode* node, std::ostream& out);\
+   std::string genFieldChainAddressing(const std::vector<std::string>& parts, std::ostream& out, std::string& outType);
 };

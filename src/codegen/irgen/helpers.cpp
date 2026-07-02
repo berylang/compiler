@@ -122,7 +122,8 @@ void CodeGen::genStatement(ASTNode* stmt, std::ostream& out) {
 int CodeGen::alignOf(const std::string& llvmT) {
     if (llvmT == "i1" || llvmT == "i8")return 1;
     if (llvmT == "i32" || llvmT == "float") return 4;
-    if (llvmT == "i64" || llvmT == "double" || llvmT == "i8*") return 8;
+    if (llvmT == "i64" || llvmT == "double") return 8;
+    if (!llvmT.empty() && llvmT.back() == '*') return 8;
     return 4;
 }
 

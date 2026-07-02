@@ -28,7 +28,7 @@ std::unique_ptr<AttributeSectionNode> Parser::parseAttributeSection() {
     consume(TokenType::TOKEN_DCOLON, "Exptected '::' after attributes seciton verbose");
 
     std::vector<std::unique_ptr<ASTNode>> attributes;
-    while(!isAtEnd() && isTypeToken(peek().type)) {
+    while(!isAtEnd() && (isTypeToken(peek().type) || isClassVarDecl())) {
         auto vars= parseVarDecl(false);
         for (auto& v : vars) {
             attributes.push_back(std::move(v));

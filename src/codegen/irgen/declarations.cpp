@@ -58,8 +58,7 @@ void CodeGen::genClassDecl(ASTNode* node) {
                                  ? "void" : llvmType(func->returnType);
             currentFuncReturn = func->returnType;
 
-            methodOut << "\ndefine " << retLT << " @" << mangledName
-                      << "(" << layout.llvmStructType << "* %self_arg";
+            methodOut << "\ndefine " << retLT << " @" << mangledName<< "(" << layout.llvmStructType << "* %self_arg";
             for (auto& p : func->parameters)
                 methodOut << ", " << llvmType(p.first) << " %" << p.second << "_arg";
             methodOut << ") {\nentry:\n";

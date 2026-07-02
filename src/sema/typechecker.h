@@ -54,5 +54,7 @@ private:
     std::string checkIdentifier(ASTNode* node);
     std::string checkLiteral(ASTNode* node);
     std::string checkNewExpr(ASTNode* node);
+    std::string resolveFieldType(ClassDefNode* cls, const std::string& fieldName);
+    std::string resolveChainType(const std::vector<std::string>& parts, int line);
     std::string resolveNumericPromotion(const std::string& lType, const std::string& rType);
 };
